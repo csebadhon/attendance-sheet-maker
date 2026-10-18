@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>
+(function(){var t=localStorage.getItem('attendance_theme')||'auto';
+var d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light')})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attendance Sheet Maker</title>
+<meta name="description" content="Make attendance lists, combine classes and export A4 PDF. Works offline and saves data in your browser. Developed by Badhon 巴栋.">
+<meta name="author" content="Badhon 巴栋">
+<meta name="theme-color" content="#0b4d1b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Attendance">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --g9:#003a10;--g8:#0b4d1b;--g7:#1c6330;--g6:#3b8050;
+    --sage:#e2ebe1;--sage2:#f0f4ef;
+    --pri:var(--g8);--pri-d:var(--g9);--pri-l:var(--sage2);--pri-b:#d5e0d4;
+    --acc:#1c6330;--acc-l:#f4f7f3;
+    --ok:var(--g8);--ok-l:var(--sage2);--ok-b:#d5e0d4;
+    --bad:#c0262d;--bad-l:#fbeeee;
+    --ink:#0f1a12;--mut:#68766c;--line:#e1e8e0;--bg:#eef2ee;--card:#fff;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  [hidden]{display:none!important}
+  body{margin:0;font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;letter-spacing:-.005em}
+  .ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;margin-right:5px;flex:none}
+  .ic.o{margin:0}
+
+  .top{background:linear-gradient(120deg,#0a4a1a 0%,#1b6230 55%,#3d8152 100%);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:100;box-shadow:0 6px 24px #0035103a}
+  .top .logo{display:inline-flex;width:36px;height:36px;border-radius:12px;background:#fff;color:var(--g8);align-items:center;justify-content:center}
+  .top .logo .ic{margin:0;width:19px;height:19px}
+  .top span.sub{font-size:11px;color:#ffffffb8;letter-spacing:.04em}
+  .top .sp{flex:1}
+  .top select{width:auto;max-width:52vw;background:#fff;color:var(--g9);border:0;font-weight:600;font-size:14px;padding:8px 16px;border-radius:999px}
+  .top select option{color:#111;background:#fff}
+  .top button{margin:0;padding:8px 14px;font-size:12px;background:#ffffff1f;color:#fff;border:1px solid #ffffff2e;border-radius:999px;font-weight:600}
+  .top button:hover{background:#ffffff33;opacity:1}
+
+  .wrap{display:flex;gap:24px;padding:24px 20px;align-items:flex-start;max-width:1400px;margin:0 auto}
+  .side{flex:0 0 390px;max-width:100%}
+  .panel{background:var(--card);border-radius:26px;padding:20px;width:100%;border:1px solid var(--line);box-shadow:0 1px 2px #0a2a1008}
+  .panel+.panel{margin-top:12px}
+  .panel h3{margin:0 0 12px;font-size:15px;display:flex;align-items:center;gap:10px;color:var(--g9);font-weight:700;letter-spacing:-.01em}
+  .panel h3 i{font-style:normal;background:var(--g8);color:#fff;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex:none}
+
+  /* ---- accordion cards ---- */
+  .panel.acc{padding:0;overflow:hidden}
+  .acc-h{display:flex;align-items:center;gap:10px;padding:16px 20px;cursor:pointer;user-select:none}
+  .acc-h i{font-style:normal;background:var(--g8);color:#fff;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex:none}
+  .acc-h .t{font-size:15px;font-weight:700;color:var(--g9);letter-spacing:-.01em;white-space:nowrap}
+  .acc-h .sm{margin-left:auto;font-size:11px;color:var(--mut);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .acc-h .chev{flex:none;color:var(--mut);transition:.15s;font-size:20px;line-height:1}
+  .acc.open .chev{transform:rotate(90deg)}
+  .acc.open .acc-h{padding-bottom:4px}
+  .acc-b{display:none;padding:8px 20px 20px}
+  .acc.open .acc-b{display:block}
+  .subh{font-size:12px;font-weight:700;color:var(--g9);margin:18px 0 6px;padding-top:14px;border-top:1px solid var(--line)}
+  .acc-b details{margin-top:12px}
+  .acc-b details>summary{margin-top:0}
+  .acc-b details[open]>summary{margin-bottom:8px}
+  .stat{text-align:center;margin-top:12px;padding:0 8px}
+
+  .tipbox{background:var(--sage2);border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-size:12px;color:#44544a;margin:0 0 10px;line-height:1.55}
+  label{display:block;font-size:11px;margin-top:12px;margin-bottom:4px;color:var(--mut);font-weight:600;letter-spacing:.03em}
+  input,select,textarea{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:14px;font-size:13px;background:var(--sage2);color:var(--ink);outline:none;transition:.15s;font-family:var(--font)}
+  input:focus,select:focus,textarea:focus{border-color:var(--g7);background:#fff;box-shadow:0 0 0 3px #1c63301f}
+  button,.btn{display:inline-block;cursor:pointer;border:1px solid transparent;border-radius:999px;padding:10px 18px;font-size:13px;font-weight:600;background:var(--g8);color:#fff;margin-top:8px;text-align:center;transition:.15s;font-family:var(--font)}
+  button:hover,.btn:hover{background:var(--g9);opacity:1}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  button.gray{background:var(--sage);color:var(--g9)}
+  button.gray:hover{background:#d3e1d1}
+  button.red{background:var(--bad-l);color:var(--bad)}
+  button.red:hover{background:#f6dcdc}
+  button.green,.btn.green{background:var(--g8)}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .box{border-radius:20px;padding:14px;font-size:12px;color:#3f4f45;line-height:1.55}
+  .box.g,.box.b{background:var(--acc-l);border:1px solid var(--line)}
+  .box.b{margin-top:10px}
+  .hl{color:var(--g7);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+  label.ck{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink);font-weight:500;letter-spacing:0;margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:14px;margin-top:6px;cursor:pointer;background:#fff}
+  label.ck input{width:auto;margin:0;accent-color:var(--g8)}
+  label.ck.on{background:var(--sage);border-color:var(--g7)}
+  #comboList{max-height:220px;overflow:auto}
+  .card{background:linear-gradient(135deg,#0b4d1b,#2a7040);color:#fff;border-radius:20px;padding:14px 16px;font-size:12.5px;line-height:1.85;margin-top:12px}
+  .card b{font-size:14px}
+  .card i{color:#ffd0d0!important}
+  .tt{display:flex;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:16px;margin-top:6px;font-size:12px;background:#fff;cursor:pointer;transition:.15s}
+  .tt:hover{background:var(--sage2)}
+  .tt.on{border-color:var(--g7);background:var(--sage)}
+  .tt b{color:var(--g8);white-space:nowrap}
+  .tt em{font-style:normal;color:var(--mut);margin-left:auto;text-align:right;font-size:11px;flex:none}
+  .tt button{margin:0;padding:6px 9px;font-size:12px;flex:none}
+  .stu{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:8px 2px;font-size:12px}
+  .stu span.n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .stu button{margin:0;padding:5px 11px;font-size:11px}
+  .stu img{width:26px;height:30px;object-fit:cover;border-radius:7px}
+  .stu .noimg{width:26px;text-align:center;color:#9bb0a0}
+  .cam{background:var(--sage);color:var(--g8);padding:6px 9px;border-radius:999px;cursor:pointer;display:inline-flex}
+  .cam .ic{margin:0}
+  details summary{cursor:pointer;font-size:13px;color:var(--g8);margin-top:12px;font-weight:700}
+
+  .mbg{position:fixed;inset:0;background:#00200a66;display:none;align-items:flex-start;justify-content:center;z-index:200;overflow:auto;padding:30px 12px;backdrop-filter:blur(4px)}
+  #ebg{z-index:205}
+  #hbg{z-index:210}
+  #mjbg{z-index:220}
+  .modal{background:var(--card);border-radius:28px;width:460px;max-width:100%;padding:24px;box-shadow:0 30px 70px #00200a40}
+  .modal h3{margin:0 0 6px;font-size:19px;color:var(--g9);font-weight:700;letter-spacing:-.02em}
+  .modal.wide{width:640px}
+  .meet2{border:1px solid var(--line);border-radius:20px;padding:12px;margin-top:8px;background:var(--acc-l)}
+  .meet2 .r{display:flex;gap:6px;margin-top:6px;align-items:center}
+  .meet2 .r:first-child{margin-top:0}
+  .meet2 .r select{flex:1;min-width:0;background:#fff}
+  .meet2 .r input{flex:1;min-width:0;background:#fff}
+  .meet2 .r button{margin:0;padding:8px 11px;flex:none}
+  .meet2 .wl{font-size:12px;color:var(--mut);font-weight:600;white-space:nowrap}
+  .meet2 .r.wk select:not(.pt){flex:0 0 64px;padding-left:10px;padding-right:6px}
+  .meet2 .r.wk select.pt{flex:1 1 auto;min-width:150px}
+  .meet2 .r.wk>span:not(.wl){flex:none}
+
+  .help h4{margin:20px 0 4px;font-size:14px;color:var(--g9);display:flex;gap:8px;align-items:center;font-weight:700}
+  .help h4 i{font-style:normal;background:var(--g8);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none}
+  .help p,.help li{font-size:12.5px;line-height:1.65;color:#3f4f45;margin:3px 0}
+  .help ul,.help ol{margin:4px 0 4px 18px;padding:0}
+  .help pre{background:#0b2414;color:#e8f3ea;border-radius:16px;padding:12px 14px;font-size:11.5px;line-height:1.55;overflow:auto;margin:6px 0;white-space:pre;font-family:Consolas,Menlo,"Microsoft YaHei",monospace}
+  .help table{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0}
+  .help th,.help td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  .help th{background:var(--sage);color:var(--g9)}
+  .help .tip{background:var(--sage2);border:1px solid var(--line);border-radius:18px;padding:10px 14px;font-size:12px;margin:8px 0}
+  .help .warn{background:var(--bad-l);border-radius:18px;padding:10px 14px;font-size:12px;margin:8px 0}
+  .help code{background:var(--sage);border-radius:6px;padding:1px 5px;font-size:11.5px;color:var(--g9)}
+  .credit{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);text-align:center;font-size:12px;color:var(--mut)}
+  .foot{text-align:center;font-size:12px;color:var(--mut);padding:6px 12px 22px}
+  .foot b,.credit b{color:var(--g8)}
+
+  .empty{background:linear-gradient(135deg,#0a4a1a 0%,#1b6230 60%,#4c8a60 100%);border-radius:32px;padding:44px 24px;text-align:center;color:#ffffffd9;line-height:1.7}
+  .empty h2{margin:0 0 6px;font-size:24px;color:#fff;font-weight:700;letter-spacing:-.03em}
+  .empty ol{text-align:left;display:inline-block;margin:10px 0;padding-left:20px;font-size:13px}
+  .empty .st{display:inline-block;background:#ffffff26;border:1px solid #ffffff38;color:#fff;border-radius:999px;padding:5px 16px;font-size:12px;margin-top:4px}
+  .empty button{background:#fff;color:var(--g8)}
+  .empty button:hover{background:var(--sage)}
+  .empty button.gray{background:#ffffff26;color:#fff;border-color:#ffffff38}
+
+  .preview{flex:1;min-width:0}
+  #sheetBox{width:100%;overflow:hidden}
+  #sheet{width:794px;transform-origin:top left}
+  #sheet.emp{width:100%}
+  #sheet .pg{background:#fff;width:794px;padding:24px 30px;margin:0 0 16px;color:#000;box-shadow:0 1px 3px #00000014,0 10px 30px #0035101a}
+  #sheet .cls{text-align:center;font-size:14px;font-weight:bold;margin:0 0 2px}
+  #sheet .badge{text-align:center;font-size:15px;font-weight:bold;letter-spacing:1px;margin-bottom:6px;color:#000}
+  #sheet .pg.m .cls{font-size:12.5px}
+  #sheet .pg.m .badge{font-size:17px;margin-bottom:8px}
+  #sheet h2{text-align:center;margin:0 0 8px;font-size:18px;font-weight:normal;color:#555}
+  #sheet .info{display:flex;justify-content:space-between;gap:10px;white-space:nowrap;font-size:12px;margin-bottom:8px}
+  #sheet .info.common{justify-content:flex-start;gap:28px;font-size:13px}
+  #sheet table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+  #sheet table.cmb{font-size:12px}
+  #sheet th,#sheet td{border:1px solid #000;padding:3px;text-align:center;vertical-align:middle;word-break:break-word}
+  #sheet th{background:#e5e7eb;white-space:nowrap}
+  #sheet td.pc{padding:0}
+  #sheet table.cmb th,#sheet table.cmb td{padding:3px 2px}
+  #sheet table.cmb td.pc{padding:0}
+  #sheet table.cmb td.id{font-size:11px;letter-spacing:-.2px}
+  #sheet table.cmb td.nm{font-size:11.5px;line-height:1.25}
+  #sheet table.cmb th.sh{white-space:normal;line-height:1.3;padding:4px 2px}
+  #sheet th.sh .s1{font-size:12.5px;font-weight:bold}
+  #sheet th.sh .s2{font-size:10.5px;font-weight:normal;color:#333}
+  #sheet table.cmb th.ci{font-size:10.5px;font-weight:600}
+  #sheet table.c4{font-size:10.5px}
+  #sheet table.c4 td.id{font-size:9.5px;letter-spacing:-.3px}
+  #sheet table.c4 td.nm{font-size:10px}
+  #sheet table.c4 th{font-size:10.5px}
+  #sheet table.c4 th.sh .s1{font-size:10.5px}
+  #sheet table.c4 th.sh .s2{font-size:8.5px}
+  #sheet table.c4 th.ci{font-size:8.5px}
+  #sheet table.c4 td.att{font-size:15px}
+  #sheet td.att{cursor:pointer;font-size:18px;font-weight:bold}
+  #sheet td.att:hover{background:#e6f0e6}
+  #sheet .ph{width:100%;height:var(--ph,69px);object-fit:cover;object-position:center;display:block;margin:0}
+  #sheet .phbox{width:100%;height:var(--ph,69px)}
+  #sheet .legend{margin-top:10px;font-size:12px;border-top:1px solid #000;padding-top:6px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+  #sheet .legend.m{display:block}
+  #sheet .legend.m div{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:2px}
+  .s-P{color:#15803d}.s-L{color:#d97706}.s-O{color:#2563eb}.s-X{color:#dc2626}
+  .hint{font-size:12px;color:var(--g9);text-align:center;margin-bottom:12px;background:var(--sage);border:1px solid #cfdccd;border-radius:999px;padding:7px 18px;width:fit-content;max-width:100%;margin-left:auto;margin-right:auto;font-weight:500}
+  #menu{position:fixed;display:none;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 14px 36px #00200a33;padding:6px;z-index:300}
+  #menu div{padding:10px 18px;cursor:pointer;font-size:15px;border-radius:12px;white-space:nowrap}
+  #menu div:hover{background:var(--sage)}
+  #imp,#impStu,#impCourse{font-size:12px;margin-top:6px;color:#3f4f45}
+  .note{font-size:11px;color:var(--mut);margin-top:8px;line-height:1.5}
+  .tabbar{display:none}
+
+  @media (max-width:900px){
+    body{padding-bottom:130px}
+    .top{padding:8px 10px}
+    .wrap{flex-direction:column;padding:10px;gap:10px}
+    .side{flex:none;width:100%}
+    .preview{width:100%}
+    body.t-setup .preview{display:none}
+    body.t-sheet .side{display:none}
+    input,select,textarea{font-size:16px;padding:11px 14px}
+    button,.btn{padding:11px 16px;font-size:14px}
+    .stu button{padding:7px 12px;font-size:12px}
+    .top .sub{display:none}
+    .top select{font-size:14px;padding:7px 12px;max-width:44vw}
+    .top button{padding:7px 10px;font-size:12px}
+    .mbg{padding:0}
+    .modal,.modal.wide{width:100%;min-height:100%;border-radius:0}
+    .tabbar{display:flex;position:fixed;left:12px;right:12px;bottom:calc(46px + env(safe-area-inset-bottom));z-index:150;background:#ffffffee;backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:999px;padding:5px;gap:4px;box-shadow:0 10px 30px #00200a30}
+    .tabbar button{flex:1;margin:0;background:transparent;color:#4b5b50;padding:11px 4px;font-size:14px}
+    .tabbar button.on{background:var(--sage);color:var(--g9)}
+    .tabbar button.pdf{background:var(--g8);color:#fff}
+  }
+
+  /* ---------- DARK MODE ---------- */
+  html[data-theme=dark]{
+    color-scheme:dark;
+    --g9:#e3f1e6;--g8:#2e8b48;--g7:#4aa563;
+    --sage:#1f2e24;--sage2:#18231c;--acc-l:#16211a;
+    --bad:#ff8a8f;--bad-l:#3a1c1e;
+    --ink:#e8efe9;--mut:#8fa196;--line:#24332a;--bg:#0c1410;--card:#141d17}
+  html[data-theme=dark] button:hover,html[data-theme=dark] .btn:hover{background:#3aa05a}
+  html[data-theme=dark] button.gray:hover{background:#2a3d30}
+  html[data-theme=dark] button.red:hover{background:#4a2326}
+  html[data-theme=dark] .top{background:linear-gradient(120deg,#052a0e 0%,#0d3a1a 55%,#1d5230 100%)}
+  html[data-theme=dark] .top button:hover{background:#ffffff33}
+  html[data-theme=dark] .top select{background:#ffffff1f;color:#fff}
+  html[data-theme=dark] input:focus,html[data-theme=dark] select:focus,html[data-theme=dark] textarea:focus{background:var(--card)}
+  html[data-theme=dark] .tipbox,html[data-theme=dark] .box,html[data-theme=dark] .help p,
+  html[data-theme=dark] .help li,html[data-theme=dark] #imp,html[data-theme=dark] #impStu,
+  html[data-theme=dark] #impCourse{color:#c3d0c7}
+  html[data-theme=dark] .tt,html[data-theme=dark] label.ck,html[data-theme=dark] .meet2 select,
+  html[data-theme=dark] .meet2 input,html[data-theme=dark] #menu{background:var(--card)}
+  html[data-theme=dark] label.ck.on,html[data-theme=dark] .tt.on{background:var(--sage)}
+  html[data-theme=dark] .hint{border-color:#2c4033}
+  html[data-theme=dark] .help pre{background:#070d09}
+  html[data-theme=dark] .stu .noimg{color:#5f7566}
+  html[data-theme=dark] .mbg{background:#000000a6}
+  html[data-theme=dark] .modal{box-shadow:0 30px 70px #000000a0}
+  html[data-theme=dark] .empty button{background:#fff;color:#0b4d1b}
+  html[data-theme=dark] .empty button:hover{background:#e2ebe1}
+  html[data-theme=dark] .empty button.gray{background:#ffffff26;color:#fff}
+  html[data-theme=dark] .tabbar{background:#141d17ee}
+  html[data-theme=dark] .tabbar button{color:#a9bcae}
+  html[data-theme=dark] .tabbar button.on{background:var(--sage);color:var(--g9)}
+  html[data-theme=dark] .tabbar button.pdf{background:var(--g8);color:#fff}
+  #themeBtn{min-width:40px}
+  @media (max-width:900px){.top #themeBtn .tl{display:none}}
+</style>
+</head>
+<body class="t-sheet">
+<div class="top">
+  <span class="logo"><span data-i="logo" data-o></span></span>
+  <select id="majSel" onchange="switchMajor(this.value)" title="Major / class"></select>
+  <button onclick="openMajor('edit')"><span data-i="edit"></span>Major</button>
+  <span class="sub">Developed by Badhon · 开发者：巴栋</span>
+  <span class="sp"></span>
+  <button id="themeBtn" onclick="cycleTheme()" aria-label="Theme"></button>
+  <button onclick="openHelp()"><span data-i="help"></span>Help</button>
+  <button onclick="downloadBackup()"><span data-i="download"></span>Backup</button>
+  <button onclick="$('restoreFile').click()"><span data-i="restore"></span>Restore</button>
+</div>
+<div id="menu"></div>
+
+<div class="tabbar">
+  <button id="tabSheet" class="on" onclick="setTab('sheet')"><span data-i="sheet"></span>Sheet</button>
+  <button id="tabSetup" onclick="setTab('setup')"><span data-i="sliders"></span>Setup</button>
+  <button class="pdf" onclick="exportPDF()"><span data-i="download"></span>PDF</button>
+</div>
+
+<!-- Help dialog -->
+<div id="hbg" class="mbg" onclick="if(event.target===this)closeHelp()">
+  <div class="modal wide help">
+    <h3>Help 使用帮助 · How to upload CSV</h3>
+    <div class="note" style="margin-top:0">You can use <b>.csv</b> or <b>.xlsx</b> files. The first row can be a header or real data. 文件可以是 .csv 或 .xlsx，第一行可以是标题行，也可以直接是数据。</div>
+
+    <div class="tip"><b>Setup for a new class 新班级设置</b>
+      <ol>
+        <li>Enter your class name and the Week 1 date in the welcome window (or tap <b>Major</b>).</li>
+        <li>Open the <b>Students</b> card: import the <b>students CSV</b>, then the <b>photos</b> (Excel). The student list belongs to the whole major, so every course uses it.</li>
+        <li>Open the <b>Courses</b> card: import the <b>courses CSV</b>, or tap <b>New course</b>. The order of steps 2 and 3 does not matter.</li>
+        <li>Open the <b>Class day</b> card, pick a date and start marking attendance.</li>
+      </ol>
+    </div>
+
+    <div class="tip"><b>The 3 cards 三个卡片</b>
+      <ul>
+        <li><b>Class day 上课:</b> pick a date, combine classes, quick marks and Export PDF.</li>
+        <li><b>Courses 课程:</b> choose, create, edit, move or delete courses, import the course CSV, set Week 1.</li>
+        <li><b>Students 学生:</b> import students and photos, edit, reorder, delete.</li>
+        <li>Tap a card title to open it. Only one card is open at a time. Backup, Restore and Help are always in the top bar.</li>
+      </ul>
+    </div>
+
+    <h4><i>1</i>Students CSV 学生名单</h4>
+    <p>Open <b>Setup → Students → Import / photos → Select CSV / XLSX</b>. One student list for the <b>whole major</b>. Every course uses it.</p>
+    <table>
+      <tr><th>Column 1</th><th>Column 2</th><th>Column 3</th></tr>
+      <tr><td>ID 序号 / 学号</td><td>Passport name 护照姓名</td><td>Chinese name 中文名字</td></tr>
+    </table>
+<pre>序号 ID,护照姓名 Passport name,中文名字 Chinese name
+672612140114,JOHN SMITH,约翰
+672612140115,MARIA GARCIA,玛丽亚</pre>
+    <ul>
+      <li>Every student gets a permanent <b>no.</b> inside the app. It is shown only in Setup, never on the sheet or PDF. Attendance and photos are linked to this number, so you can change an ID at any time with <b>Edit</b> and nothing is lost.</li>
+      <li>The <b>ID can be empty</b>. Two students cannot have the same ID.</li>
+      <li><b>Importing again:</b> a row whose ID matches a student <b>updates</b> that student. A row <b>without an ID</b> is matched by passport name. If nothing matches, a new student is added.</li>
+      <li>Rows without a passport name are skipped.</li>
+      <li><b>Order:</b> use ▲ ▼, or type a serial # and a new position, then tap <b>Move</b>. Photos are matched by this order.</li>
+      <li>Deleting a student removes him or her from <b>all courses</b>.</li>
+      <li>A sheet page holds up to <b>18 students</b>. With 19 or more students, the next page is added automatically.</li>
+    </ul>
+    <div class="row"><button class="green" onclick="downloadTemplate()"><span data-i="download"></span>Student CSV template</button></div>
+
+    <h4><i>2</i>Courses CSV 课程表</h4>
+    <p>Open <b>Setup → Courses → Import courses → Select CSV / XLSX</b>. <b>One row = one weekly class meeting.</b> A course that meets twice a week needs two rows. In the app each course appears <b>once</b> in the course list.</p>
+    <table>
+      <tr><th>Column</th><th>What to write</th><th>Accepted examples</th></tr>
+      <tr><td>1 Course title 课程</td><td>Chinese name, then English</td><td><code>社会学概论 Introduction to Sociology</code></td></tr>
+      <tr><td>2 Teacher 教师</td><td>Teacher name</td><td><code>Teacher B</code></td></tr>
+      <tr><td>3 Weeks 周次</td><td>Range, list, odd or even</td><td><code>第1-16周</code> · <code>1-16</code> · <code>1,3,5,7</code> · <code>单</code>/<code>odd</code> · <code>双</code>/<code>even</code> · <code>all</code></td></tr>
+      <tr><td>4 Day 星期</td><td>Chinese, English or 1 to 7</td><td><code>星期一</code> · <code>周三</code> · <code>Monday</code> · <code>Mon</code> · <code>1</code></td></tr>
+      <tr><td>5 Class time 节次</td><td>Period range</td><td><code>第3-4节</code> · <code>3-4</code> · <code>6-7</code> · <code>13</code></td></tr>
+    </table>
+<pre>课程 Course title,教师 Teacher,周次 Weeks,星期 Day,节次 Class time
+网络与新媒体概论 Introduction to Network &amp; New Media,Teacher A,第1-16周,星期一,第6-7节
+网络与新媒体概论 Introduction to Network &amp; New Media,Teacher A,第1-16周,星期四,第3-4节
+社会学概论 Introduction to Sociology,Teacher B,第1-16周,星期三,第3-4节
+新闻传播学新生研讨,Teacher C,第1-8周,星期二,第3-4节</pre>
+    <ul>
+      <li>The <b>date</b> is calculated from <b>Week 1</b> (Courses card → Semester setting). Set Week 1 first.</li>
+      <li>Sessions that already exist are skipped, so you can import again safely.</li>
+      <li>Valid periods: 1-2, 3-4, 5-6, 6-7, 7-8, 8-9, 9-10, 11-12 and 13.</li>
+      <li>After import, the message tells you how many sessions were created and which rows were skipped.</li>
+    </ul>
+    <div class="row"><button class="green" onclick="downloadCourseTemplate()"><span data-i="download"></span>Course CSV template</button></div>
+
+    <h4><i>3</i>Photos 照片</h4>
+    <p>Open <b>Setup → Students → Import / photos → One-time photo import</b> and choose an <b>.xlsx</b> file with the pictures placed in the cells. Photos are matched to students <b>by row order</b>, so import the students first and keep the same order as the student list. You can also tap the camera icon next to one student to add a single photo.</p>
+
+    <h4><i>4</i>Excel to CSV tips 从 Excel 保存 CSV</h4>
+    <ul>
+      <li>In Excel choose <b>Save As → CSV UTF-8 (Comma delimited)</b>. This keeps Chinese characters correct.</li>
+      <li>Plain <b>.xlsx</b> files also work. Only the first sheet is read.</li>
+      <li>Long ID numbers: format the ID column as <b>Text</b> so Excel does not change them to 6.7E+11.</li>
+    </ul>
+    <div class="warn">If Chinese text looks broken (乱码), re-save the file as <b>CSV UTF-8</b> and try again.</div>
+
+    <h4><i>5</i>Backup &amp; restore 备份与恢复</h4>
+    <ul>
+      <li><b>Backup</b> (top bar) downloads one <code>.json</code> file of the <b>current major</b>. The file name starts with the Chinese major name.</li>
+      <li><b>Restore</b> (top bar) reads that file on any phone or computer. It replaces the data of the major with the same name, or creates it. Older backup files are converted automatically.</li>
+      <li>Back up at least once a week. The line under the cards shows when you last did. Clearing browser data erases everything saved in the browser. Your data stays on your device and is never uploaded.</li>
+    </ul>
+
+    <h4><i>6</i>Courses, marking &amp; combining 课程 · 点名 · 合并</h4>
+    <ul>
+      <li><b>New course / Edit course:</b> set the title and teacher, then for each meeting choose the <b>day</b>, <b>class time</b> and <b>week range</b> (every week, odd weeks, even weeks or custom). Add another day for a course that meets twice a week.</li>
+      <li><b>Custom weeks:</b> in the week list choose <b>Custom 自定义</b>, then type the week numbers with commas, for example <code>1,3,5,8,12</code>. Ranges also work: <code>1-4,9</code>.</li>
+      <li>Write the course title as Chinese name, a space, then the English name. The app shows both in the course card and lists.</li>
+      <li>When you edit a course, sessions that stay in the new schedule <b>keep their attendance</b>. The form shows how many sessions are kept, added and removed.</li>
+      <li><b>Move session</b> changes the date and time of one single class (for example a make-up class).</li>
+      <li>Click or tap a Check In / Check Out cell: <b>√</b> Present · <b>L</b> Late · <b>O</b> Approved leave · <b>X</b> Absent. A late student (L) is also counted in the Present total.</li>
+      <li><b>Combine</b> (Class day card) shows only classes of the <b>same date</b> as the selected class. Pick 2 to 4 of them to make one all-day sheet.</li>
+      <li><b>PDF</b> exports an A4 PDF. File names: <code>课程名-第N周-日期-出勤名单.pdf</code> for one course, <code>班级名-第N周_日期-出勤名单.pdf</code> for an all-day sheet.</li>
+    </ul>
+
+    <h4><i>7</i>Dark mode 深色模式</h4>
+    <ul>
+      <li>Tap the sun / moon / screen button in the top bar to switch between <b>Auto</b> (follows your device), <b>Light</b> and <b>Dark</b>. Your choice is saved. The printed sheet and the PDF always stay white.</li>
+    </ul>
+
+    <div class="credit">Developed by <b>Badhon</b> · 开发者：<b>巴栋</b></div>
+    <button type="button" class="green" style="width:100%" onclick="closeHelp()">Close 关闭</button>
+  </div>
+</div>
+
+<!-- Move one session dialog -->
+<div id="ebg" class="mbg" onclick="if(event.target===this)closeMove()">
+  <div class="modal">
+    <h3>Move this session 调整这一节课</h3>
+    <div class="note" id="eInfo" style="margin-top:0"></div>
+    <div class="row">
+      <div><label>Date 日期</label><input id="eDate" type="date"></div>
+      <div><label>Class time 上课时间</label><select id="eSlot"></select></div>
+    </div>
+    <div class="note">This changes only this one class. To change every week, use “Edit course”.</div>
+    <div class="row" style="margin-top:12px">
+      <button type="button" class="gray" onclick="closeMove()">Cancel</button>
+      <button type="button" class="green" onclick="submitMove()">Save 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Major / welcome dialog -->
+<div id="mjbg" class="mbg" onclick="if(event.target===this&&!mjFirst)closeMajor()">
+  <div class="modal">
+    <h3 id="mjHead">Major / class</h3>
+    <div class="note" id="mjNote" style="margin-top:0">This name is printed at the top of every sheet. Backup and PDF file names start with the Chinese name.</div>
+    <label>Chinese name 中文名称</label>
+    <input id="mjCn" placeholder="e.g. 网络2601班">
+    <label>English name</label>
+    <input id="mjEn" placeholder="e.g. Network and New Media">
+    <div id="mjWk" style="display:none">
+      <label>Week 1 starts on (Monday) 第1周星期一</label>
+      <input id="mjWeek1" type="date">
+      <div class="note">Used to calculate dates from week numbers. You can change it later in Setup → Courses → Semester setting.</div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button type="button" class="gray" id="mjCancel" onclick="closeMajor()">Cancel</button>
+      <button type="button" class="green" id="mjOk" onclick="submitMajor()">Save</button>
+    </div>
+    <div id="mjWelcome" style="display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:6px">
+      <div class="note" style="margin-top:4px">Already used this app before? 已有备份文件？</div>
+      <div class="row">
+        <button type="button" class="gray" onclick="$('restoreFile').click()"><span data-i="restore"></span>Restore backup</button>
+        <button type="button" class="gray" onclick="openHelp()"><span data-i="help"></span>Help</button>
+      </div>
+    </div>
+    <div id="mjExtra" style="margin-top:10px;border-top:1px solid var(--line);padding-top:6px">
+      <div class="row">
+        <button type="button" class="gray" onclick="openMajor('new')"><span data-i="plus"></span>Add another major</button>
+        <button type="button" class="red" onclick="delMajor()"><span data-i="trash"></span>Delete this major</button>
+      </div>
+      <div class="note">Each major keeps its own courses, students, photos and attendance.</div>
+    </div>
+    <div class="credit" style="margin-top:10px">Developed by <b>Badhon</b> · 开发者：<b>巴栋</b></div>
+  </div>
+</div>
+
+<!-- New / edit course dialog -->
+<div id="mbg" class="mbg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="mHead">New course</h3>
+    <label>Course title 课程名称 (Chinese name, space, English name)</label>
+    <input id="mCourse" list="dlTitles" placeholder="e.g. 网络与新媒体概论 Introduction to ...">
+    <datalist id="dlTitles"></datalist>
+    <label>Teacher 教师</label>
+    <input id="mTeacher" list="dlTeachers" placeholder="Teacher name">
+    <datalist id="dlTeachers"></datalist>
+    <label>Day, time &amp; week range 星期 · 节次 · 周次</label>
+    <div id="mMeet"></div>
+    <button type="button" class="gray" onclick="addMeet()"><span data-i="plus"></span>Add another day</button>
+    <div id="mCount" class="note"></div>
+    <div class="row" style="margin-top:12px">
+      <button type="button" class="gray" onclick="closeModal()">Cancel</button>
+      <button type="button" class="green" id="mOk" onclick="submitModal()">Create course</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="restoreFile" accept=".json,application/json" hidden onchange="restoreBackup(this)">
+
+<div class="wrap">
+  <div class="side">
+
+    <!-- CARD 1: CLASS DAY -->
+    <div class="panel acc open" id="card-day">
+      <div class="acc-h" onclick="openCard('day')"><i>1</i><span class="t">Class day 上课</span><span class="sm" id="sumDay"></span><span class="chev">›</span></div>
+      <div class="acc-b">
+        <input id="ttDate" type="date" onchange="pickDay()">
+        <div id="ttHead" class="note"></div>
+        <div id="ttList"></div>
+        <div id="ttMsg" class="note"></div>
+
+        <div class="subh">Combine classes 合并</div>
+        <div id="comboHead" style="font-size:13px;font-weight:600;color:var(--g9)"></div>
+        <div id="comboList" style="margin-top:6px"></div>
+        <button class="gray" id="selDayBtn" style="width:100%" onclick="selDay()">Select all classes of this day</button>
+        <label class="ck" style="margin-top:10px"><input type="checkbox" id="comboOn" onchange="toggleCombo(this.checked)"> <b>Use combined all-day sheet</b></label>
+        <div id="comboMsg" class="note"></div>
+
+        <div class="subh">Attendance &amp; PDF 点名与导出</div>
+        <div class="note" style="margin-top:0">Quick marks apply to the class shown on the sheet.</div>
+        <div class="row">
+          <button class="green" onclick="markAll('in')">All Check In √</button>
+          <button class="green" onclick="markAll('out')">All Check Out √</button>
+        </div>
+        <button class="gray" style="width:100%" onclick="clearAll()">Clear attendance</button>
+        <button style="width:100%;padding:12px;font-size:14px" onclick="exportPDF()"><span data-i="download"></span>Export PDF (A4)</button>
+      </div>
+    </div>
+
+    <!-- CARD 2: COURSES -->
+    <div class="panel acc" id="card-course">
+      <div class="acc-h" onclick="openCard('course')"><i>2</i><span class="t">Courses 课程</span><span class="sm" id="sumCourse"></span><span class="chev">›</span></div>
+      <div class="acc-b">
+        <select id="courseSel"></select>
+        <label>Session 课次</label>
+        <select id="sessSel"></select>
+        <div class="row">
+          <button onclick="openModal()"><span data-i="plus"></span>New course</button>
+          <button class="red" onclick="delCourse()"><span data-i="trash"></span>Delete course</button>
+        </div>
+        <div class="note">“Delete course” removes the course with all its weeks.</div>
+
+        <div id="curCard" class="card"></div>
+        <div class="row">
+          <button id="editBtn" onclick="openModal(db.cur)"><span data-i="edit"></span>Edit course</button>
+          <button id="moveBtn" class="gray" onclick="openMove()"><span data-i="calendar"></span>Move session</button>
+        </div>
+
+        <details>
+          <summary>Import courses from CSV / Excel</summary>
+          <div class="box g">
+            Columns: <b>Course title, Teacher, Weeks, Day, Class time</b> (header row optional). One row per class meeting. <span class="hl" onclick="openHelp()">How?</span>
+            <div class="row">
+              <label class="btn green" style="margin-top:8px">Select CSV / XLSX
+                <input type="file" accept=".csv,.xlsx,.xls" hidden onchange="importCourses(this)"></label>
+              <button class="gray" onclick="downloadCourseTemplate()">Template</button>
+            </div>
+            <div id="impCourse"></div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Semester setting</summary>
+          <label>Week 1 starts on (Monday)</label><input id="week1" type="date">
+        </details>
+      </div>
+    </div>
+
+    <!-- CARD 3: STUDENTS -->
+    <div class="panel acc" id="card-stu">
+      <div class="acc-h" onclick="openCard('stu')"><i>3</i><span class="t">Students 学生</span><span class="sm" id="sumStu"></span><span class="chev">›</span></div>
+      <div class="acc-b">
+        <details>
+          <summary>Import students / photos</summary>
+          <div class="box g">
+            <b><span data-i="users"></span>Import students from CSV / Excel</b> <span class="hl" onclick="openHelp()">How?</span><br>
+            Columns: <b>ID, Passport name, Chinese name</b> (header row optional). The <b>ID can be empty</b>. One list for the whole major. Every course uses it.
+            <div class="row">
+              <label class="btn green" style="margin-top:8px">Select CSV / XLSX
+                <input type="file" accept=".csv,.xlsx,.xls" hidden onchange="importStudents(this)"></label>
+              <button class="gray" onclick="downloadTemplate()">Template</button>
+            </div>
+            <div id="impStu"></div>
+          </div>
+          <div class="box b">
+            <b><span data-i="image"></span>One-time photo import</b><br>
+            Choose your Excel file (.xlsx). Photos are saved in this browser permanently.
+            <label class="btn" style="display:block;margin-top:8px">Select Excel file
+              <input type="file" accept=".xlsx" hidden onchange="importXlsx(this)"></label>
+            <div id="imp"></div>
+          </div>
+        </details>
+
+        <div class="row" style="margin-top:12px;align-items:center">
+          <input id="mvFrom" type="number" min="1" inputmode="numeric" placeholder="Serial # 序号">
+          <input id="mvTo" type="number" min="1" inputmode="numeric" placeholder="To position #">
+          <button class="gray" style="margin:0;flex:none" onclick="moveSerial()">Move</button>
+        </div>
+        <div id="stuList" style="margin-top:10px;max-height:340px;overflow:auto"></div>
+
+        <details>
+          <summary>Add students by typing</summary>
+          <label>One per line: ID, Passport name, Chinese name (ID can be empty)</label>
+          <textarea id="bulk" rows="3"></textarea>
+          <button onclick="bulkAdd()">Add students</button>
+        </details>
+      </div>
+    </div>
+
+    <div class="note stat"><span id="bkStat"></span><br><span id="bkMsg"></span></div>
+    <div class="credit" style="border:0;margin-top:4px">Developed by <b>Badhon</b> · 开发者：<b>巴栋</b></div>
+  </div>
+
+  <div class="preview">
+    <div class="hint" id="hint">Click a Check In / Check Out cell: √ Present · L Late · O Approved leave · X Absent</div>
+    <div id="sheetBox"><div id="sheet"></div></div>
+    <div class="foot">Developed by <b>Badhon</b> · 开发者：<b>巴栋</b></div>
+  </div>
+</div>
+
+<script>
+if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+// Ask the browser not to delete saved data when the phone is low on space
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+
+// ---- line icons (inline SVG, no download needed) ----
+const IC={
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  trash:'<path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+  restore:'<path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 1 0 2.1-9.4L1 10"/>',
+  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+  camera:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  sliders:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  sheet:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  x:'<path d="M18 6L6 18M6 6l12 12"/>',
+  logo:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  monitor:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>'
+};
+const ic=(n,o)=>`<svg class="ic${o?' o':''}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||''}</svg>`;
+document.querySelectorAll('[data-i]').forEach(e=>{e.outerHTML=ic(e.dataset.i,e.hasAttribute('data-o'))});
+function toggleTip(id){const e=document.getElementById(id);if(e)e.hidden=!e.hidden}
+
+// ---- accordion cards (only one open at a time) ----
+const CARDS=['day','course','stu'];
+function openCard(n){
+  CARDS.forEach(k=>{const e=document.getElementById('card-'+k);if(e)e.classList.toggle('open',k===n)});
+}
+
+// ---- theme: Auto (follow device) / Light / Dark. Saved in this browser. ----
+const TH_KEY='attendance_theme';
+const THEMES=['auto','light','dark'];
+const TH_ICON={auto:'monitor',light:'sun',dark:'moon'};
+const TH_NAME={auto:'Auto',light:'Light',dark:'Dark'};
+const themeMq=window.matchMedia('(prefers-color-scheme: dark)');
+function themeMode(){const t=localStorage.getItem(TH_KEY);return THEMES.includes(t)?t:'auto'}
+function applyTheme(){
+  const m=themeMode();
+  const dark=m==='dark'||(m==='auto'&&themeMq.matches);
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.setAttribute('content',dark?'#07210f':'#0b4d1b');
+  const b=document.getElementById('themeBtn');
+  if(b){
+    b.innerHTML=ic(TH_ICON[m])+'<span class="tl">'+TH_NAME[m]+'</span>';
+    b.title='Theme: '+TH_NAME[m]+' (tap to change)';
+  }
+}
+function cycleTheme(){
+  const next=THEMES[(THEMES.indexOf(themeMode())+1)%THEMES.length];
+  try{localStorage.setItem(TH_KEY,next)}catch(e){}
+  applyTheme();
+}
+if(themeMq.addEventListener)themeMq.addEventListener('change',applyTheme);
+else if(themeMq.addListener)themeMq.addListener(applyTheme);
+applyTheme();
+
+const KEY='attendance_app_v4';
+const MAJ_KEY='attendance_majors';
+const BK_KEY='attendance_last_backup';
+const PER_PAGE=18;
+const MAX_COMBO=4;
+const DAYS=[['星期一','Monday'],['星期二','Tuesday'],['星期三','Wednesday'],['星期四','Thursday'],['星期五','Friday'],['星期六','Saturday'],['星期日','Sunday']];
+const DAY_OPTS=DAYS.map(d=>d[0]+' '+d[1]);
+const WEEK_N=Array.from({length:18},(_,i)=>i+1);
+const PERIODS={1:['08:20','09:00'],2:['09:05','09:45'],3:['10:00','10:40'],4:['10:45','11:25'],5:['11:30','12:10'],6:['14:00','14:40'],7:['14:45','15:25'],8:['15:40','16:20'],9:['16:25','17:05'],10:['17:10','17:50'],11:['19:00','19:40'],12:['19:45','20:25'],13:['20:30','21:10']};
+const SLOT_KEYS=['1-2','3-4','5-6','6-7','7-8','8-9','9-10','11-12','13'];
+function slotInfo(k){
+  const p=String(k||'').split('-').map(Number);
+  if(!p[0]||!PERIODS[p[0]]||!PERIODS[p[p.length-1]])return null;
+  return {first:p[0],t:`第${k}节 ${PERIODS[p[0]][0]}-${PERIODS[p[p.length-1]][1]}`};
+}
+const SLOTS=SLOT_KEYS.map(k=>({v:k,label:slotInfo(k).t}));
+const OLDSLOT={'1':'1-2','2':'3-4','3':'5-6','4':'7-8','5':'9-10','6':'11-12','7':'13'};
+
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const mondayStr=()=>{const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));return ymd(d)};
+const dayIdx=s=>[6,0,1,2,3,4,5][new Date(s+'T00:00:00').getDay()];
+function weekNum(date){
+  if(!date||!db.week1)return 0;
+  return Math.floor((new Date(date+'T00:00:00')-new Date(db.week1+'T00:00:00'))/864e5/7)+1;
+}
+function weekOf(date){
+  if(!date||!db.week1)return '';
+  return `第${Math.max(1,Math.min(18,weekNum(date)))}周`;
+}
+function dateOf(week,day){
+  const d=new Date(db.week1+'T00:00:00');
+  d.setDate(d.getDate()+(week-1)*7+day);
+  return ymd(d);
+}
+function normDay(v){
+  if(!v)return '';
+  const d=DAYS.find(d=>v.includes(d[0])||v.toLowerCase().includes(d[1].toLowerCase()));
+  return d?d[0]+' '+d[1]:v;
+}
+function normWeek(v){
+  const m=(v||'').match(/\d+/);
+  return m?`第${Math.min(18,+m[0])}周`:'';
+}
+let uidN=0;const uid=()=>Date.now()+'_'+(uidN++);
+const emptyDb=()=>({cur:null,lib:{titles:[],teachers:[]},photos:{},courses:[],roster:[],nextNo:1,ver:2});
+
+// ---- majors (each major has its own data). A brand new user starts completely empty. ----
+let majors=null;
+try{majors=JSON.parse(localStorage.getItem(MAJ_KEY)||'null')}catch(e){}
+if(!majors||!Array.isArray(majors.list)||!majors.list.length){
+  const hasOld=!!(localStorage.getItem(KEY)||localStorage.getItem('attendance_app_v3'));
+  majors={cur:'m1',list:[hasOld?{id:'m1',cn:'网络2601班',en:'Network and New Media'}:{id:'m1',cn:'',en:''}]};
+}
+if(!majors.list.some(m=>m.id===majors.cur))majors.cur=majors.list[0].id;
+const curMajor=()=>majors.list.find(m=>m.id===majors.cur);
+const dataKey=id=>id==='m1'?KEY:KEY+'_'+id;
+const saveMajors=()=>{try{localStorage.setItem(MAJ_KEY,JSON.stringify(majors))}catch(e){}};
+const classLine=()=>{const m=curMajor();return ((m.cn||'')+'  '+(m.en||'')).trim()};
+const fileSafe=s=>String(s||'').replace(/[\\\/:*?"<>|\s]+/g,'_').replace(/^_+|_+$/g,'')||'attendance';
+function loadDb(id){
+  let d=null;
+  try{d=JSON.parse(localStorage.getItem(dataKey(id))||'null')}catch(e){}
+  return d;
+}
+
+let db=loadDb(majors.cur);
+if(!db){
+  let old=null;
+  if(majors.cur==='m1'){try{old=JSON.parse(localStorage.getItem('attendance_app_v3')||'null')}catch(e){}}
+  db=(old&&old.courses&&old.courses.length)?old:emptyDb();
+}
+function normalize(){
+  db.courses=db.courses||[];
+  db.lib=db.lib||{};
+  db.lib.titles=db.lib.titles||[];db.lib.teachers=db.lib.teachers||[];
+  db.photos=db.photos||{};
+  db.roster=db.roster||[];
+  db.sel=db.sel||[];
+  db.combo=!!db.combo;
+  db.week1=db.week1||mondayStr();
+  db.courses.forEach(c=>{
+    c.students=c.students||[];
+    c.weekday=normDay(c.weekday);c.week=normWeek(c.week);
+    c.slot=OLDSLOT[c.slot]||c.slot||'';
+    if(c.date){c.weekday=DAY_OPTS[dayIdx(c.date)];c.week=weekOf(c.date)}
+    delete c.cls;delete c.start;delete c.end;
+    if(c.title&&!db.lib.titles.includes(c.title))db.lib.titles.push(c.title);
+    if(c.teacher&&!db.lib.teachers.includes(c.teacher))db.lib.teachers.push(c.teacher);
+    c.students.forEach(s=>{
+      if(s.photo&&(db.ver||0)<2&&!db.photos[s.id])db.photos[s.id]=s.photo;
+      delete s.photo;
+    });
+  });
+
+  // ---- migration to v2: every student gets a permanent "no"; photos re-keyed from ID to no ----
+  if((db.ver||0)<2){
+    const map=Object.create(null);            // old id -> no
+    let next=db.nextNo||1;
+    db.roster.forEach(r=>{
+      if(!r.no)r.no=next++;
+      if(r.id&&map[r.id]==null)map[r.id]=r.no;
+    });
+    db.courses.forEach(c=>c.students.forEach(s=>{
+      if(s.id&&map[s.id]==null){
+        const r={no:next++,id:s.id,name:s.name,cn:s.cn||''};
+        db.roster.push(r);map[s.id]=r.no;
+      }
+      if(s.id)s.no=map[s.id];
+    }));
+    const ph={};
+    Object.keys(db.photos).forEach(k=>{if(map[k]!=null)ph[map[k]]=db.photos[k]});
+    db.photos=ph;
+    db.nextNo=next;
+    db.ver=2;
+  }
+
+  // one student list for the whole major: every course has the same students, in the same order
+  {
+    db.nextNo=db.nextNo||1;
+    db.roster.forEach(r=>{if(!r.no)r.no=db.nextNo++;if(r.id==null)r.id=''});
+    const nos=new Set(db.roster.map(s=>s.no));
+    db.courses.forEach(c=>c.students.forEach(s=>{
+      if(!s.no)s.no=db.nextNo++;
+      if(!nos.has(s.no)){nos.add(s.no);db.roster.push({no:s.no,id:s.id||'',name:s.name,cn:s.cn||''})}
+    }));
+    const ord=new Map(db.roster.map((r,i)=>[r.no,i]));
+    db.courses.forEach(c=>{
+      db.roster.forEach(r=>{
+        if(!c.students.some(x=>x.no===r.no))c.students.push({no:r.no,id:r.id,name:r.name,cn:r.cn,in:null,out:null});
+      });
+      c.students.sort((a,b)=>ord.get(a.no)-ord.get(b.no));
+    });
+    db.nextNo=Math.max(db.nextNo||1,1,...db.roster.map(r=>r.no+1));
+  }
+  db.sel=db.sel.filter(id=>db.courses.some(c=>c.id===id));
+  delete db.lib.classes;
+}
+normalize();
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cur=()=>db.courses.find(c=>c.id===db.cur);
+const view=()=>db.roster;
+function save(){
+  try{localStorage.setItem(dataKey(majors.cur),JSON.stringify(db))}
+  catch(e){alert('Browser storage is full. Please download a backup and remove old courses or photos.')}
+}
+
+const SYM={P:'√',L:'L',O:'O',X:'X'};
+const slotShort=v=>(slotInfo(v)||{}).t||'';
+const slotTime=slotShort;
+const slotFirst=v=>(slotInfo(v)||{first:0}).first;
+// Chinese part only (used by the sheet headers and PDF file names)
+const cnSubject=t=>{const s=String(t||'').trim().split(/\s+(?=[A-Za-z])/)[0].trim();return s||'(untitled)'};
+// Full title (Chinese + English) for the app screens
+const fullTitle=t=>String(t||'').trim()||'(untitled)';
+const enSubject=t=>{const s=String(t||'').trim(),cn=cnSubject(t);return s.startsWith(cn)?s.slice(cn.length).trim():''};
+const photoOf=s=>db.photos[s.no]||'';
+const sortCourses=()=>db.courses.sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||slotFirst(a.slot)-slotFirst(b.slot));
+
+function openHelp(){$('hbg').style.display='flex';$('hbg').scrollTop=0}
+function closeHelp(){$('hbg').style.display='none'}
+
+// ---- major management ----
+function renderMajor(){
+  $('majSel').innerHTML=majors.list.map(m=>`<option value="${m.id}" ${m.id===majors.cur?'selected':''}>${m.cn?esc(m.cn)+(m.en?' · '+esc(m.en):''):'(set up your class)'}</option>`).join('');
+  document.title=(curMajor().cn||'Attendance')+' · Attendance';
+}
+function loadMajorData(){
+  db=loadDb(majors.cur)||emptyDb();
+  normalize();sortCourses();
+  if(!cur())db.cur=db.courses[0]?.id||null;
+  ttHold=false;$('ttDate').value='';
+  save();renderAll();
+}
+function switchMajor(id){
+  if(id===majors.cur)return;
+  save();
+  majors.cur=id;saveMajors();
+  loadMajorData();
+  if(!curMajor().cn)openMajor('first');
+}
+let mjMode='edit',mjFirst=false;
+function openMajor(mode){
+  mjMode=mode;mjFirst=(mode==='first');
+  const m=curMajor();
+  const fresh=mode==='new'||mode==='first';
+  $('mjHead').textContent=mode==='first'?'Welcome 欢迎':mode==='new'?'Add another major':'Major / class';
+  $('mjNote').textContent=mode==='first'
+    ?'Set up your class. This name is printed at the top of every sheet. Then import your students and courses, or restore a backup.'
+    :'This name is printed at the top of every sheet. Backup and PDF file names start with the Chinese name.';
+  $('mjOk').textContent=mode==='first'?'Start 开始':mode==='new'?'Create major':'Save';
+  $('mjCn').value=fresh?'':m.cn;
+  $('mjEn').value=fresh?'':(m.en||'');
+  $('mjWeek1').value=db.week1||mondayStr();
+  $('mjWk').style.display=mode==='first'?'block':'none';
+  $('mjWelcome').style.display=mode==='first'?'block':'none';
+  $('mjCancel').style.display=mode==='first'?'none':'';
+  $('mjExtra').style.display=(mode==='edit')?'block':'none';
+  $('mjbg').style.display='flex';
+  setTimeout(()=>$('mjCn').focus(),50);
+}
+function closeMajor(){$('mjbg').style.display='none';mjFirst=false}
+function submitMajor(){
+  const cn=$('mjCn').value.trim(),en=$('mjEn').value.trim();
+  if(!cn)return alert('Please enter the Chinese name of the class / major.');
+  if(majors.list.some(m=>m.cn===cn&&(mjMode==='new'||m.id!==majors.cur)))
+    return alert('A major with this Chinese name already exists.');
+  if(mjMode==='first'){
+    const m=curMajor();m.cn=cn;m.en=en;
+    if($('mjWeek1').value){db.week1=$('mjWeek1').value;db.courses.forEach(c=>{if(c.date)c.week=weekOf(c.date)})}
+    saveMajors();save();closeMajor();renderAll();
+  }else if(mjMode==='edit'){
+    const m=curMajor();m.cn=cn;m.en=en;
+    saveMajors();closeMajor();renderAll();
+  }else{
+    save();
+    const m={id:'m'+Date.now(),cn,en};
+    majors.list.push(m);majors.cur=m.id;saveMajors();
+    closeMajor();loadMajorData();
+  }
+}
+function delMajor(){
+  if(majors.list.length<2)return alert('You need at least one major. Add another one first, or just rename this one.');
+  const m=curMajor();
+  if(!confirm(`Delete the major "${m.cn}" and ALL its courses, students, photos and attendance?\n\nDownload a backup first if you may need it again.`))return;
+  try{localStorage.removeItem(dataKey(m.id))}catch(e){}
+  majors.list=majors.list.filter(x=>x.id!==m.id);
+  majors.cur=majors.list[0].id;saveMajors();
+  closeMajor();loadMajorData();
+}
+
+function setTab(t){
+  document.body.classList.toggle('t-sheet',t==='sheet');
+  document.body.classList.toggle('t-setup',t==='setup');
+  $('tabSheet').classList.toggle('on',t==='sheet');
+  $('tabSetup').classList.toggle('on',t==='setup');
+  window.scrollTo(0,0);
+  fitSheet();
+}
+function fitSheet(){
+  const box=$('sheetBox'),sh=$('sheet');
+  const w=box.clientWidth;if(!w)return;
+  const isEmp=sh.classList.contains('emp');
+  const s=isEmp?1:Math.min(1,w/794);
+  sh.style.transform=s<1?`scale(${s})`:'none';
+  box.style.height=s<1?Math.ceil(sh.offsetHeight*s)+'px':'auto';
+  $('hint').style.display=isEmp?'none':'';
+  $('hint').textContent=window.innerWidth<=900
+    ?'Tap a Check In / Check Out cell: √ Present · L Late · O Leave · X Absent'
+    :'Click a Check In / Check Out cell: √ Present · L Late · O Approved leave · X Absent';
+}
+window.addEventListener('resize',fitSheet);
+window.addEventListener('orientationchange',()=>setTimeout(fitSheet,200));
+
+function renderCard(){
+  const c=cur();
+  $('curCard').innerHTML=c
+    ?`<b>${esc(cnSubject(c.title))}</b>${enSubject(c.title)?`<br>${esc(enSubject(c.title))}`:''}<br>${ic('user')}${c.teacher?esc(c.teacher):'<i>no teacher yet</i>'}<br>${ic('calendar')}${esc(c.date)||'-'} ${esc(c.weekday)} · ${esc(c.week)}<br>${ic('clock')}${esc(slotShort(c.slot))||'-'}`
+    :'No course yet. Click “New course”, import a course file or restore a backup.';
+  $('editBtn').disabled=!c;$('moveBtn').disabled=!c;
+}
+function renderFields(){
+  $('week1').value=db.week1;
+  $('dlTitles').innerHTML=db.lib.titles.map(t=>`<option value="${esc(t)}">`).join('');
+  $('dlTeachers').innerHTML=db.lib.teachers.map(t=>`<option value="${esc(t)}">`).join('');
+  renderCard();
+}
+$('week1').addEventListener('change',()=>{
+  if(!$('week1').value)return;
+  db.week1=$('week1').value;
+  db.courses.forEach(c=>{if(c.date)c.week=weekOf(c.date)});
+  save();renderAll();
+});
+
+// ---- course list: one item per course ----
+const courseTitles=()=>[...new Set(db.courses.map(c=>c.title))];
+function nearest(title){
+  const l=db.courses.filter(c=>c.title===title);
+  if(!l.length)return null;
+  const t=ymd(new Date());
+  return l.find(c=>c.date>=t)||l[l.length-1];
+}
+function renderSel(){
+  const c=cur(),titles=courseTitles();
+  $('courseSel').innerHTML=titles.length
+    ?titles.map((t,i)=>{
+        const n=db.courses.filter(x=>x.title===t).length;
+        return `<option value="${i}" ${c&&c.title===t?'selected':''}>${esc(fullTitle(t))} · ${n} session${n>1?'s':''}</option>`;
+      }).join('')
+    :'<option value="">(no course yet)</option>';
+  const list=c?db.courses.filter(x=>x.title===c.title):[];
+  $('sessSel').innerHTML=list.length
+    ?list.map(x=>`<option value="${x.id}" ${x.id===db.cur?'selected':''}>${esc(x.week)} · ${esc(x.date)} ${esc(x.weekday.split(' ')[0])} · 第${esc(x.slot)}节</option>`).join('')
+    :'<option value="">-</option>';
+}
+$('courseSel').onchange=e=>{
+  const t=courseTitles()[+e.target.value];
+  const c=t&&nearest(t);
+  if(c){db.cur=c.id;db.combo=false;ttHold=false;save();renderAll()}
+};
+$('sessSel').onchange=e=>{
+  if(!e.target.value)return;
+  db.cur=e.target.value;db.combo=false;ttHold=false;save();renderAll();
+};
+
+// ---- move one session (date / time) ----
+function openMove(){
+  const c=cur();if(!c)return alert('No class selected yet.');
+  $('eInfo').textContent=`${fullTitle(c.title)} · ${c.date} ${c.weekday} · ${c.week} · ${slotShort(c.slot)}`;
+  $('eDate').value=c.date||'';
+  const sl=SLOTS.slice();
+  if(c.slot&&!sl.some(s=>s.v===c.slot)&&slotInfo(c.slot))sl.push({v:c.slot,label:slotTime(c.slot)});
+  $('eSlot').innerHTML=sl.map(s=>`<option value="${esc(s.v)}" ${s.v===c.slot?'selected':''}>${esc(s.label)}</option>`).join('');
+  $('ebg').style.display='flex';
+}
+function closeMove(){$('ebg').style.display='none'}
+function submitMove(){
+  const c=cur();if(!c)return closeMove();
+  const date=$('eDate').value,slot=$('eSlot').value;
+  if(!date)return alert('Please choose a date.');
+  if(!slot)return alert('Please choose the class time.');
+  if(db.courses.some(x=>x.id!==c.id&&x.title===c.title&&x.date===date&&x.slot===slot))
+    return alert('This course already has a class at that date and time.');
+  c.slot=slot;c.date=date;c.weekday=DAY_OPTS[dayIdx(date)];c.week=weekOf(date);
+  sortCourses();ttHold=false;
+  closeMove();save();renderAll();
+}
+
+// ---- backup / restore ----
+function stats(d){
+  const keys=new Set();
+  const k=s=>s.no!=null?'n'+s.no:'i'+s.id;
+  (d.roster||[]).forEach(s=>keys.add(k(s)));
+  (d.courses||[]).forEach(c=>(c.students||[]).forEach(s=>keys.add(k(s))));
+  return {sessions:(d.courses||[]).length,students:keys.size,photos:Object.keys(d.photos||{}).length};
+}
+// short status line under the cards
+function renderBackup(){
+  const last=localStorage.getItem(BK_KEY);
+  let t;
+  if(!last)t='<span style="color:var(--bad)">No backup downloaded yet. Tap Backup in the top bar.</span>';
+  else{
+    const days=Math.floor((Date.now()-new Date(last).getTime())/864e5);
+    t=`Last backup: <b>${days<=0?'today':days+' day(s) ago'}</b>`
+      +(days>=7?' <span style="color:var(--bad)">· time for a new backup</span>':'');
+  }
+  $('bkStat').innerHTML=`${esc(curMajor().cn||'-')} · `+t;
+}
+function downloadBackup(){
+  save();
+  const m=curMajor();
+  const data={app:'attendance-app',version:6,developer:'Badhon 巴栋',exported:new Date().toISOString(),major:{cn:m.cn,en:m.en||''},db};
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`${fileSafe(m.cn)}_attendance_backup_${ymd(new Date())}.json`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  localStorage.setItem(BK_KEY,new Date().toISOString());
+  renderBackup();
+  $('bkMsg').textContent=`✓ Backup of “${m.cn||'class'}” downloaded. Keep the file somewhere safe (cloud drive, chat to yourself, email).`;
+}
+async function restoreBackup(input){
+  const f=input.files[0];input.value='';if(!f)return;
+  const out=$('bkMsg');
+  try{
+    const j=JSON.parse(await f.text());
+    const d=j&&j.db?j.db:j;
+    if(!d||!Array.isArray(d.courses))throw new Error('This is not an attendance backup file.');
+    const mj=j&&j.major&&j.major.cn?j.major:null;
+    let target=mj?majors.list.find(m=>m.cn===mj.cn):curMajor();
+    const s=stats(d);
+    const name=mj?mj.cn:(curMajor().cn||'this class');
+    const where=mj?(target?`It will REPLACE the data of the major “${mj.cn}”.`:`It will create the major “${mj.cn}”.`)
+                    :`It will REPLACE all data of “${name}”.`;
+    if(!confirm(`Restore this backup?\n\n${mj?mj.cn+(mj.en?' · '+mj.en:'')+'\n':''}${s.sessions} sessions · ${s.students} students · ${s.photos} photos`
+      +(j.exported?`\nSaved on ${new Date(j.exported).toLocaleString()}`:'')
+      +`\n\n${where}`))return;
+    save();
+    if(mj&&!target){
+      const ph=majors.list.find(m=>!m.cn);
+      if(ph){ph.cn=mj.cn;ph.en=mj.en||'';target=ph}
+      else{target={id:'m'+Date.now(),cn:mj.cn,en:mj.en||''};majors.list.push(target)}
+    }else if(mj&&mj.en!=null)target.en=mj.en;
+    if(!target.cn)target.cn=(prompt('Chinese name of this class?','')||'').trim()||'班级';
+    majors.list=majors.list.filter(m=>{
+      if(m.id===target.id||m.cn)return true;
+      try{localStorage.removeItem(dataKey(m.id))}catch(e){}
+      return false;
+    });
+    majors.cur=target.id;saveMajors();
+    db=d;normalize();sortCourses();
+    if(!cur())db.cur=db.courses[0]?.id||null;
+    ttHold=false;$('ttDate').value='';
+    closeMajor();
+    save();renderAll();
+    out.textContent=`✓ Restored “${target.cn}”: ${s.sessions} sessions, ${s.students} students and ${s.photos} photos.`;
+  }catch(e){out.textContent='Restore failed: '+e.message}
+}
+
+// ---- new / edit course: title, teacher + meetings (day, time, week range) ----
+let mEditTitle=null,mMeet=[];
+function toMeet(d,s,weeks){
+  const w=[...new Set(weeks)].sort((a,b)=>a-b);
+  const m={d,s,from:1,to:16,pat:'all'};
+  if(w.length&&w.every(x=>x>=1&&x<=18)){
+    m.from=w[0];m.to=w[w.length-1];
+    if(w.length===m.to-m.from+1)return m;
+    if(w.length>=2&&w.every((x,i)=>i===0||x-w[i-1]===2)){m.pat=w[0]%2?'odd':'even';return m}
+  }
+  m.pat='custom';m.custom=w;
+  return m;
+}
+function meetsOf(title){
+  const g={};
+  db.courses.filter(c=>c.title===title&&c.date).forEach(c=>{
+    const d=dayIdx(c.date),k=d+'|'+c.slot;
+    (g[k]=g[k]||{d,s:c.slot,w:[]}).w.push(weekNum(c.date));
+  });
+  return Object.values(g).sort((a,b)=>a.d-b.d||slotFirst(a.s)-slotFirst(b.s)).map(x=>toMeet(x.d,x.s,x.w));
+}
+function openModal(id){
+  const c=id?db.courses.find(x=>x.id===id):null;
+  if(id&&!c)return alert('No course to edit yet.');
+  mEditTitle=c?c.title:null;
+  $('mHead').textContent=c?'Edit course 修改课程':'New course 新课程';
+  $('mOk').textContent=c?'Save changes':'Create course';
+  $('mCourse').value=c?c.title:'';
+  $('mTeacher').value=c?(c.teacher||''):'';
+  mMeet=c?meetsOf(c.title):[{d:0,s:SLOT_KEYS[1],from:1,to:16,pat:'all'}];
+  if(!mMeet.length)mMeet=[{d:0,s:SLOT_KEYS[1],from:1,to:16,pat:'all'}];
+  renderMeet();
+  $('dlTitles').innerHTML=db.lib.titles.map(t=>`<option value="${esc(t)}">`).join('');
+  $('dlTeachers').innerHTML=db.lib.teachers.map(t=>`<option value="${esc(t)}">`).join('');
+  $('mbg').style.display='flex';
+}
+function closeModal(){$('mbg').style.display='none';mEditTitle=null}
+function renderMeet(){
+  const wopts=sel=>WEEK_N.map(w=>`<option value="${w}" ${w===sel?'selected':''}>${w}</option>`).join('');
+  $('mMeet').innerHTML=mMeet.map((m,i)=>{
+    const sl=SLOTS.slice();
+    if(m.s&&!sl.some(x=>x.v===m.s)&&slotInfo(m.s))sl.push({v:m.s,label:slotTime(m.s)});
+    const cust=m.pat==='custom';
+    return `<div class="meet2">
+      <div class="r">
+        <select onchange="setMeet(${i},'d',this.value)">${DAY_OPTS.map((d,k)=>`<option value="${k}" ${m.d===k?'selected':''}>${esc(d)}</option>`).join('')}</select>
+        <select onchange="setMeet(${i},'s',this.value)">${sl.map(s=>`<option value="${esc(s.v)}" ${m.s===s.v?'selected':''}>${esc(s.label)}</option>`).join('')}</select>
+        ${mMeet.length>1?`<button type="button" class="red" onclick="delMeet(${i})">${ic('x',1)}</button>`:''}
+      </div>
+      <div class="r wk">
+        <span class="wl">Weeks 周</span>
+        ${cust?'':`<select onchange="setMeet(${i},'from',this.value)">${wopts(m.from)}</select><span>–</span><select onchange="setMeet(${i},'to',this.value)">${wopts(m.to)}</select>`}
+        <select class="pt" onchange="setMeet(${i},'pat',this.value)">
+          <option value="all" ${m.pat==='all'?'selected':''}>Every week 每周</option>
+          <option value="odd" ${m.pat==='odd'?'selected':''}>Odd weeks 单周</option>
+          <option value="even" ${m.pat==='even'?'selected':''}>Even weeks 双周</option>
+          <option value="custom" ${cust?'selected':''}>Custom 自定义</option>
+        </select>
+      </div>
+      ${cust?`<div class="r"><span class="wl">Week no. 周次</span><input value="${esc((m.custom||[]).join(','))}" placeholder="e.g. 1,3,5,8,12 or 1-4,9" oninput="setCustom(${i},this.value)"></div>`:''}
+      </div>`;
+  }).join('');
+  updCount();
+}
+function setMeet(i,k,v){
+  const m=mMeet[i];if(!m)return;
+  if(k==='pat'&&v==='custom'&&m.pat!=='custom')m.custom=meetWeeks(m);
+  if(k==='pat'&&v!=='custom'&&m.pat==='custom'){
+    const w=m.custom||[];
+    if(w.length){m.from=Math.min(...w);m.to=Math.max(...w)}else{m.from=1;m.to=16}
+  }
+  m[k]=(k==='d'||k==='from'||k==='to')?+v:v;
+  renderMeet();
+}
+function setCustom(i,v){
+  const m=mMeet[i];if(!m)return;
+  m.custom=parseWeeks(v);
+  updCount();
+}
+function addMeet(){
+  const last=mMeet[mMeet.length-1]||{d:0,s:SLOT_KEYS[1],from:1,to:16,pat:'all'};
+  mMeet.push({d:last.d>=3?Math.min(6,last.d+1):last.d+3,s:last.s,from:last.pat==='custom'?1:last.from,to:last.pat==='custom'?16:last.to,pat:last.pat==='custom'?'all':last.pat});
+  renderMeet();
+}
+function delMeet(i){mMeet.splice(i,1);renderMeet()}
+function meetWeeks(m){
+  if(m.pat==='custom')return (m.custom||[]).slice();
+  const a=Math.min(m.from,m.to),b=Math.max(m.from,m.to),out=[];
+  for(let w=a;w<=b;w++){
+    if(m.pat==='odd'&&w%2!==1)continue;
+    if(m.pat==='even'&&w%2!==0)continue;
+    out.push(w);
+  }
+  return out;
+}
+function plan(){
+  const out=[],seen=new Set();
+  mMeet.forEach(m=>meetWeeks(m).forEach(w=>{
+    const date=dateOf(w,m.d),k=date+'|'+m.s;
+    if(seen.has(k))return;seen.add(k);
+    out.push({date,d:m.d,s:m.s,w});
+  }));
+  return out.sort((a,b)=>a.date.localeCompare(b.date)||slotFirst(a.s)-slotFirst(b.s));
+}
+function updCount(){
+  if(!$('mCount'))return;
+  const p=plan();
+  if(!p.length){$('mCount').textContent='Select at least one week.';return}
+  let t=`${p.length} session(s), from ${p[0].date} to ${p[p.length-1].date}.`;
+  if(mEditTitle!==null){
+    const ex=db.courses.filter(c=>c.title===mEditTitle);
+    const keys=new Set(p.map(x=>x.date+'|'+x.s));
+    const keep=ex.filter(c=>keys.has(c.date+'|'+c.slot)).length;
+    t+=` Keeps ${keep}, adds ${p.length-keep}, removes ${ex.length-keep}.`;
+  }
+  $('mCount').textContent=t;
+}
+// every new session starts with the full student list of the major
+function rosterCopy(){
+  return (db.roster||[]).map(s=>({no:s.no,id:s.id,name:s.name,cn:s.cn,in:null,out:null}));
+}
+function makeSessions(title,teacher,items){
+  if(!db.lib.titles.includes(title))db.lib.titles.push(title);
+  if(teacher&&!db.lib.teachers.includes(teacher))db.lib.teachers.push(teacher);
+  const base=rosterCopy();
+  let made=0,skipped=0,firstId=null;
+  items.sort((a,b)=>a.date.localeCompare(b.date)||slotFirst(a.s)-slotFirst(b.s));
+  items.forEach(x=>{
+    if(db.courses.some(c=>c.title===title&&c.date===x.date&&c.slot===x.s)){skipped++;return}
+    const c={id:uid(),title,teacher,date:x.date,weekday:DAY_OPTS[x.d],week:weekOf(x.date),slot:x.s,
+      students:base.map(s=>({...s}))};
+    db.courses.push(c);made++;
+    if(!firstId)firstId=c.id;
+  });
+  return {made,skipped,firstId};
+}
+function submitModal(){
+  const title=$('mCourse').value.trim(),teacher=$('mTeacher').value.trim();
+  if(!title)return alert('Please enter the course title.');
+  if(!teacher)return alert('Please enter the teacher name.');
+  const items=plan();
+  if(!items.length)return alert('Please select at least one week.');
+  if(mEditTitle===null){
+    const r=makeSessions(title,teacher,items);
+    if(!r.made){closeModal();return alert('These sessions already exist.')}
+    sortCourses();
+    db.cur=r.firstId;ttHold=false;
+    openCard('day');
+    closeModal();save();renderAll();return;
+  }
+  // edit: keep matching sessions (with their attendance), remove the rest, add the new ones
+  const old=mEditTitle;
+  if(title!==old&&db.courses.some(x=>x.title===title))
+    return alert('Another course already has this title. Please use a different title.');
+  const keys=new Set(items.map(x=>x.date+'|'+x.s));
+  const existing=db.courses.filter(x=>x.title===old);
+  const removed=existing.filter(x=>!keys.has(x.date+'|'+x.slot));
+  const marked=removed.filter(x=>x.students.some(s=>s.in||s.out)).length;
+  if(marked&&!confirm(`${marked} session(s) that will be removed already have attendance marks.\n\nRemove them anyway?`))return;
+  const curWas=cur();
+  db.courses=db.courses.filter(x=>!removed.includes(x));
+  db.sel=db.sel.filter(id=>db.courses.some(c=>c.id===id));
+  db.courses.forEach(x=>{if(x.title===old){x.title=title;x.teacher=teacher}});
+  makeSessions(title,teacher,items);
+  sortCourses();
+  if(!cur()||(curWas&&removed.includes(curWas))){const n=nearest(title);db.cur=n?n.id:(db.courses[0]?.id||null)}
+  ttHold=false;
+  closeModal();save();renderAll();
+}
+
+function delCourse(){
+  const c=cur();if(!c)return;
+  const ids=db.courses.filter(x=>x.title===c.title).map(x=>x.id);
+  if(!confirm(`Delete the course "${fullTitle(c.title)}" and all ${ids.length} of its session(s)?`))return;
+  save();
+  db.courses=db.courses.filter(x=>!ids.includes(x.id));
+  db.sel=db.sel.filter(x=>!ids.includes(x));
+  db.cur=db.courses[0]?.id||null;
+  ttHold=false;
+  try{localStorage.setItem(dataKey(majors.cur),JSON.stringify(db))}catch(e){}
+  renderAll();
+}
+
+async function readTable(f){
+  let wb;
+  if(/\.csv$/i.test(f.name)){
+    let text=await f.text();
+    if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+    wb=XLSX.read(text,{type:'string',raw:true});
+  }else{
+    wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+  }
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});
+}
+function cellText(v){return String(v==null?'':v).replace(/\s+/g,' ').trim()}
+
+const HC_TITLE=/课程|course|title|subject/i;
+const HC_TEACHER=/教师|老师|teacher/i;
+const HC_DAY=/星期|weekday|^day/i;
+const HC_WEEKS=/周次|^weeks?$|weeks/i;
+const HC_TIME=/节次|时间|time|period|节/i;
+function parseWeeks(t){
+  t=String(t||'').toLowerCase();
+  if(!t.trim())return [];
+  let odd=/单|odd/.test(t),even=/双|even/.test(t);
+  if(/全|all/.test(t)&&!/\d/.test(t))return WEEK_N.slice();
+  const set=new Set();
+  t.replace(/[第周单双]|odd|even/g,' ').split(/[,，;；、\s]+/).filter(Boolean).forEach(p=>{
+    const m=p.match(/^(\d+)\s*[-~–—到至]\s*(\d+)$/);
+    if(m){for(let w=+m[1];w<=+m[2];w++)set.add(w)}
+    else if(/^\d+$/.test(p))set.add(+p);
+  });
+  return [...set].filter(w=>w>=1&&w<=18&&(!odd||w%2===1)&&(!even||w%2===0)).sort((a,b)=>a-b);
+}
+function parseDay(t){
+  t=String(t||'').trim();
+  if(!t)return -1;
+  let m=t.match(/[周星期礼拜]+\s*([一二三四五六日天])/);
+  if(m)return '一二三四五六日天'.indexOf(m[1])%7;
+  if(/^[1-7]$/.test(t))return +t-1;
+  const l=t.toLowerCase();
+  if(l.length>=3)return DAYS.findIndex(d=>d[1].toLowerCase().startsWith(l.slice(0,3)));
+  return -1;
+}
+function parseSlot(t){
+  t=String(t||'');
+  let m=t.match(/(\d{1,2})\s*[-~–—到至]\s*(\d{1,2})/);
+  let key=m?`${+m[1]}-${+m[2]}`:((t.match(/\d{1,2}/)||[''])[0]);
+  if(key&&!m)key=String(+key);
+  return slotInfo(key)?key:'';
+}
+async function importCourses(input){
+  const f=input.files[0];input.value='';if(!f)return;
+  const out=$('impCourse');out.textContent='Reading file...';
+  try{
+    let rows=(await readTable(f)).map(r=>(r||[]).map(cellText)).filter(r=>r.some(x=>x));
+    if(!rows.length){out.textContent='The file is empty.';return}
+    let iT=0,iTe=1,iW=2,iD=3,iS=4,start=0;
+    const h=rows[0];
+    const fT=h.findIndex(x=>HC_TITLE.test(x)),fTe=h.findIndex(x=>HC_TEACHER.test(x)),
+          fD=h.findIndex(x=>HC_DAY.test(x)),fW=h.findIndex((x,i)=>i!==fD&&HC_WEEKS.test(x)),
+          fS=h.findIndex(x=>HC_TIME.test(x)&&!HC_TITLE.test(x));
+    if([fT,fTe,fD,fW,fS].some(x=>x>=0)){
+      start=1;
+      if(fT>=0)iT=fT;if(fTe>=0)iTe=fTe;if(fD>=0)iD=fD;if(fW>=0)iW=fW;if(fS>=0)iS=fS;
+    }
+    let made=0,skipped=0,bad=[],firstId=null,titles=new Set();
+    rows.slice(start).forEach((r,k)=>{
+      const title=r[iT],teacher=r[iTe]||'';
+      const weeks=parseWeeks(r[iW]),day=parseDay(r[iD]),slot=parseSlot(r[iS]);
+      if(!title||!weeks.length||day<0||!slot){bad.push(start+k+1);return}
+      const items=weeks.map(w=>({date:dateOf(w,day),d:day,s:slot}));
+      const res=makeSessions(title,teacher,items);
+      made+=res.made;skipped+=res.skipped;titles.add(title);
+      if(!firstId&&res.firstId)firstId=res.firstId;
+    });
+    if(made){sortCourses();db.cur=firstId||db.cur;ttHold=false}
+    save();renderAll();
+    out.innerHTML=`✓ ${made} session(s) created for ${titles.size} course(s)`
+      +(skipped?`, ${skipped} already existed`:'')+'.'
+      +(bad.length?`<br>Note: skipped row(s) with missing or unreadable data: ${bad.join(', ')}. <span class="hl" onclick="openHelp()">See help</span>`:'');
+  }catch(e){out.textContent='Import failed: '+e.message}
+}
+function downloadCourseTemplate(){
+  const csv='\uFEFF课程 Course title,教师 Teacher,周次 Weeks,星期 Day,节次 Class time\r\n'
+    +'网络与新媒体概论 Introduction to Network & New Media,Teacher A,第1-16周,星期一,第6-7节\r\n'
+    +'网络与新媒体概论 Introduction to Network & New Media,Teacher A,第1-16周,星期四,第3-4节\r\n'
+    +'社会学概论 Introduction to Sociology,Teacher B,第1-16周,星期三,第3-4节\r\n'
+    +'新闻传播学新生研讨,Teacher C,第1-8周,星期二,第3-4节\r\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='courses_template.csv';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+// ---- pick a day ----
+let ttHold=false;
+function dayList(d){
+  return db.courses.filter(c=>c.date===d).sort((a,b)=>slotFirst(a.slot)-slotFirst(b.slot));
+}
+function renderTT(){
+  const c=cur();
+  if(!ttHold&&c&&c.date)$('ttDate').value=c.date;
+  else if(!$('ttDate').value)$('ttDate').value=ymd(new Date());
+  const d=$('ttDate').value;
+  const list=dayList(d);
+  $('ttHead').textContent=d?`${DAY_OPTS[dayIdx(d)]} · ${weekOf(d)} · ${list.length} class(es)`:'';
+  $('ttList').innerHTML=list.length
+    ?list.map(x=>`<div class="tt ${x.id===db.cur?'on':''}" onclick="openSession('${x.id}')"><b>第${esc(x.slot)}节</b><span style="flex:1;min-width:0">${esc(fullTitle(x.title))}</span><em>${esc(slotTime(x.slot).replace(/^第[\d-]+节\s*/,''))}<br>${esc(x.teacher)}</em><button class="gray" title="Edit course" onclick="event.stopPropagation();openModal('${x.id}')">${ic('edit',1)}</button></div>`).join('')
+    :'<div class="note">No class on this day.</div>';
+}
+function pickDay(){
+  const d=$('ttDate').value;
+  const list=dayList(d);
+  $('ttMsg').textContent='';
+  if(!list.length){ttHold=true;renderTT();renderSum();return}
+  ttHold=false;
+  db.cur=list[0].id;
+  if(list.length>=2){
+    db.sel=list.slice(0,MAX_COMBO).map(x=>x.id);db.combo=true;
+    if(list.length>MAX_COMBO)$('ttMsg').textContent=`Only the first ${MAX_COMBO} classes are combined.`;
+  }else{db.combo=false;db.sel=[]}
+  save();renderAll();
+}
+function openSession(id){
+  db.cur=id;db.combo=false;ttHold=false;
+  save();renderAll();
+  $('ttMsg').textContent='Showing this class only. Use “Select all classes of this day” under Combine classes for the all-day sheet.';
+}
+
+// ---- combine: only classes of the same date as the selected class ----
+function renderCombo(){
+  const c=cur();
+  const day=(c&&c.date)?dayList(c.date):[];
+  db.sel=db.sel.filter(id=>day.some(x=>x.id===id));
+  const can=day.length>=2;
+  if(!can)db.combo=false;
+  $('comboHead').textContent=c&&c.date?`${c.date} ${c.weekday} · ${day.length} class(es)`:'No class selected';
+  $('comboList').innerHTML=can
+    ?day.map(x=>{
+      const on=db.sel.includes(x.id);
+      return `<label class="ck ${on?'on':''}"><input type="checkbox" ${on?'checked':''} onchange="toggleSel('${x.id}',this.checked)">
+        <span>第${esc(x.slot)}节 · ${esc(fullTitle(x.title))}</span></label>`;
+    }).join('')
+    :`<div class="note" style="margin-top:0">${c?'Only one class on this day, so there is nothing to combine.':'Select a class first.'}</div>`;
+  $('selDayBtn').disabled=!can;
+  $('comboOn').disabled=!can;
+  $('comboOn').checked=db.combo;
+  const n=db.sel.length;
+  $('comboMsg').textContent=!can?''
+    :db.combo
+      ?(n>=2?`Showing combined sheet with ${n} classes.`:'Tick at least 2 classes to combine. Showing the current class for now.')
+      :`${n} selected. Turn on the switch to combine.`;
+}
+function toggleSel(id,on){
+  if(on){
+    if(db.sel.length>=MAX_COMBO){alert(`You can combine up to ${MAX_COMBO} classes.`);renderCombo();return}
+    if(!db.sel.includes(id))db.sel.push(id);
+  }else db.sel=db.sel.filter(x=>x!==id);
+  save();renderCombo();renderSheet();
+}
+function toggleCombo(on){db.combo=on;save();renderCombo();renderSheet()}
+function selDay(){
+  const c=cur();if(!c||!c.date)return alert('Select a class with a date first.');
+  const ids=dayList(c.date).slice(0,MAX_COMBO).map(x=>x.id);
+  db.sel=ids;db.combo=ids.length>=2;
+  save();renderCombo();renderSheet();
+}
+function sessions(){
+  const c=cur();
+  let list=[];
+  if(db.combo&&c)list=db.sel.map(id=>db.courses.find(x=>x.id===id)).filter(x=>x&&x.date===c.date);
+  if(list.length<2)return c?[c]:[];
+  return list.slice().sort((a,b)=>slotFirst(a.slot)-slotFirst(b.slot));
+}
+
+// ---- students (one list for the whole major, each with a permanent "no") ----
+function syncStudent(s){
+  db.courses.forEach(c=>c.students.forEach(t=>{if(t.no===s.no){t.id=s.id;t.name=s.name;t.cn=s.cn}}));
+  db.roster.forEach(t=>{if(t.no===s.no){t.id=s.id;t.name=s.name;t.cn=s.cn}});
+}
+const sameName=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
+function addStudents(list){
+  let added=0,updated=0;
+  list.forEach(s=>{
+    // 1) ID given: match by ID.  2) no ID: match by passport name.  3) otherwise add a new student.
+    let r=s.id?db.roster.find(x=>x.id===s.id):db.roster.find(x=>sameName(x.name,s.name));
+    if(r){
+      r.name=s.name;if(s.cn)r.cn=s.cn;updated++;
+    }else{
+      r={no:db.nextNo++,id:s.id||'',name:s.name,cn:s.cn||''};
+      db.roster.push(r);added++;
+    }
+    db.courses.forEach(c=>{
+      const ex=c.students.find(x=>x.no===r.no);
+      if(ex){ex.id=r.id;ex.name=r.name;ex.cn=r.cn}
+      else c.students.push({no:r.no,id:r.id,name:r.name,cn:r.cn,in:null,out:null});
+    });
+  });
+  return {added,updated};
+}
+function bulkAdd(){
+  const list=$('bulk').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const [id,name,cn]=l.split(/[,，\t]/).map(s=>s.trim());
+    return {id:id||'',name:name||'',cn:cn||''};
+  }).filter(s=>s.name);
+  if(!list.length)return alert('Write one student per line: ID, Passport name, Chinese name (ID can be empty, e.g. ",JOHN SMITH,约翰")');
+  addStudents(list);
+  $('bulk').value='';save();renderAll();
+}
+function delStu(i){
+  const s=db.roster[i];if(!s)return;
+  if(confirm(`Remove ${s.name} from this major?\nThe student will be removed from ALL courses.`)){
+    db.roster.splice(i,1);
+    db.courses.forEach(c=>{c.students=c.students.filter(x=>x.no!==s.no)});
+    delete db.photos[s.no];
+    save();renderAll();
+  }
+}
+function editStu(i){
+  const s=view()[i];if(!s)return;
+  const id=prompt('ID (can be empty)',s.id||'');if(id===null)return;
+  const n=prompt('Passport name',s.name||'');if(n===null)return;
+  const cn=prompt('Chinese name',s.cn||'');if(cn===null)return;
+  const nid=id.trim(),nn=n.trim();
+  if(!nn)return alert('Passport name cannot be empty.');
+  if(nid&&db.roster.some(x=>x.no!==s.no&&x.id===nid))return alert(`Another student already has the ID "${nid}".`);
+  s.id=nid;s.name=nn;s.cn=cn.trim();
+  syncStudent(s);save();renderAll();
+}
+// ---- reorder (the same order is used by every course, the sheet and the photo import) ----
+function applyOrder(){
+  const ord=new Map(db.roster.map((r,i)=>[r.no,i]));
+  db.courses.forEach(c=>c.students.sort((a,b)=>ord.get(a.no)-ord.get(b.no)));
+}
+function moveStu(i,d){
+  const j=i+d;if(j<0||j>=db.roster.length)return;
+  const [s]=db.roster.splice(i,1);db.roster.splice(j,0,s);
+  applyOrder();save();renderAll();
+}
+function moveSerial(){
+  const n=db.roster.length,a=parseInt($('mvFrom').value,10),b=parseInt($('mvTo').value,10);
+  if(!(a>=1&&a<=n&&b>=1&&b<=n))return alert(`Enter numbers from 1 to ${n}.`);
+  if(a===b)return;
+  const [s]=db.roster.splice(a-1,1);db.roster.splice(b-1,0,s);
+  $('mvFrom').value='';$('mvTo').value='';
+  applyOrder();save();renderAll();
+}
+
+const H_ID=/序号|学号|^id$|student\s*id|^no\.?$|number/i;
+const H_NAME=/护照|passport|^name$|english|姓名.*(英|护)/i;
+const H_CN=/中文|chinese|汉/i;
+function parseStudentRows(rows){
+  rows=rows.map(r=>(r||[]).map(cellText));
+  rows=rows.filter(r=>r.some(x=>x));
+  if(!rows.length)return [];
+  let iId=0,iName=1,iCn=2,start=0;
+  const h=rows[0];
+  const fId=h.findIndex(x=>H_ID.test(x)),fName=h.findIndex(x=>H_NAME.test(x)),fCn=h.findIndex(x=>H_CN.test(x));
+  const looksHeader=fId>=0||fName>=0||fCn>=0||(!!h[0]&&!/\d/.test(h[0]));
+  if(looksHeader){
+    start=1;
+    if(fId>=0)iId=fId;
+    if(fName>=0)iName=fName;
+    if(fCn>=0)iCn=fCn;
+    if(fId<0&&fName<0&&fCn<0){iId=0;iName=1;iCn=2}
+  }else if(h.length>=4&&!h[1]){
+    iName=2;iCn=3;
+  }
+  return rows.slice(start).map(r=>({id:r[iId]||'',name:r[iName]||'',cn:r[iCn]||''}))
+    .filter(s=>s.name);
+}
+async function importStudents(input){
+  const f=input.files[0];input.value='';if(!f)return;
+  const out=$('impStu');out.textContent='Reading file...';
+  try{
+    const list=parseStudentRows(await readTable(f));
+    if(!list.length){out.innerHTML='No students found. Use columns: ID, Passport name, Chinese name. <span class="hl" onclick="openHelp()">See help</span>';return}
+    const r=addStudents(list);
+    save();renderAll();
+    out.innerHTML=`✓ Added ${r.added} new, updated ${r.updated} existing students (${list.length} rows read). They are in every course.`
+      +(db.courses.length?'':'<br>Next: import your courses. Every course will get these students.');
+  }catch(e){out.textContent='Import failed: '+e.message}
+}
+function downloadTemplate(){
+  const csv='\uFEFF序号 ID,护照姓名 Passport name,中文名字 Chinese name\r\n672612140114,JOHN SMITH,约翰\r\n672612140115,MARIA GARCIA,玛丽亚\r\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='students_template.csv';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+function toThumb(blob){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(blob);const img=new Image();
+    img.onload=()=>{
+      const cv=document.createElement('canvas');cv.width=120;cv.height=140;
+      const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,120,140);
+      const s=Math.max(120/img.width,140/img.height);
+      x.drawImage(img,(120-img.width*s)/2,(140-img.height*s)/2,img.width*s,img.height*s);
+      URL.revokeObjectURL(url);res(cv.toDataURL('image/jpeg',.82));
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('unsupported image'))};
+    img.src=url;
+  });
+}
+function upPhoto(i,input){
+  const f=input.files[0];if(!f)return;
+  toThumb(f).then(d=>{
+    const st=view()[i];if(!st)return;
+    db.photos[st.no]=d;save();renderAll();
+  });
+}
+
+const lname=e=>e.localName||e.nodeName.split(':').pop();
+function byName(root,name){return Array.from(root.getElementsByTagName('*')).filter(e=>lname(e)===name)}
+async function importXlsx(input){
+  const f=input.files[0];input.value='';if(!f)return;
+  const out=$('imp');out.textContent='Reading file...';
+  try{
+    const people=view();
+    if(!people.length){out.textContent='Import the students first. Photos are matched to students by row order.';return}
+    const zip=await JSZip.loadAsync(f);
+    const parse=t=>new DOMParser().parseFromString(t,'application/xml');
+    let items=[];
+    const drawings=Object.keys(zip.files).filter(n=>/^xl\/drawings\/drawing\d+\.xml$/.test(n));
+    for(const dn of drawings){
+      const xml=parse(await zip.file(dn).async('string'));
+      const relName=dn.replace('drawings/','drawings/_rels/')+'.rels';
+      const rels={};
+      if(zip.file(relName)){
+        byName(parse(await zip.file(relName).async('string')),'Relationship')
+          .forEach(r=>rels[r.getAttribute('Id')]=r.getAttribute('Target'));
+      }
+      const anchors=[...byName(xml,'twoCellAnchor'),...byName(xml,'oneCellAnchor')];
+      anchors.forEach(a=>{
+        const blip=byName(a,'blip')[0];if(!blip)return;
+        const id=blip.getAttribute('r:embed')||blip.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','embed');
+        const t=rels[id];if(!t)return;
+        const from=byName(a,'from')[0];
+        const row=from?+byName(from,'row')[0].textContent:0;
+        const col=from?+byName(from,'col')[0].textContent:0;
+        items.push({row,col,path:'xl/media/'+t.split('/').pop()});
+      });
+    }
+    let method='positions in the sheet';
+    if(!items.length){
+      method='file order';
+      items=Object.keys(zip.files).filter(n=>/^xl\/media\/.+\.(png|jpe?g|gif|bmp|webp)$/i.test(n))
+        .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))
+        .map((p,i)=>({row:i,col:0,path:p}));
+    }
+    items.sort((a,b)=>a.row-b.row||a.col-b.col);
+    if(!items.length){out.textContent='No pictures found in this file.';return}
+    const n=Math.min(items.length,people.length);
+    let ok=0;
+    for(let i=0;i<n;i++){
+      try{
+        const blob=await zip.file(items[i].path).async('blob');
+        db.photos[people[i].no]=await toThumb(blob);ok++;
+      }catch(e){}
+    }
+    save();renderAll();
+    out.innerHTML=`✓ Imported ${ok} photos (found ${items.length} pictures, ${people.length} students; matched by ${method}).`
+      +(items.length!==people.length?'<br>Note: counts differ. Please check the photos in the list below.':'');
+  }catch(e){out.textContent='Import failed: '+e.message}
+}
+
+function renderStu(){
+  const list=view();
+  $('stuList').innerHTML=list.length?list.map((s,i)=>`
+    <div class="stu">
+    ${photoOf(s)?`<img src="${photoOf(s)}">`:`<span class="noimg">${ic('user',1)}</span>`}
+    <span class="n"><b>${i+1}.</b> <span style="color:var(--mut)">no.${s.no}</span> ${s.id?esc(s.id):'<i style="color:var(--mut)">(no ID)</i>'}<br>${esc(s.name)} ${esc(s.cn)}</span>
+    <button class="gray" style="padding:5px 8px" ${i===0?'disabled':''} onclick="moveStu(${i},-1)">▲</button>
+    <button class="gray" style="padding:5px 8px" ${i===list.length-1?'disabled':''} onclick="moveStu(${i},1)">▼</button>
+    <label style="margin:0"><input type="file" accept="image/*" hidden onchange="upPhoto(${i},this)"><span class="cam">${ic('camera',1)}</span></label>
+    <button onclick="editStu(${i})" class="gray">Edit</button>
+    <button class="red" onclick="delStu(${i})">${ic('x',1)}</button></div>`).join('')
+    :'<div class="note">No students yet. Open “Import students / photos” above.</div>';
+}
+
+let menuCtx=null;
+function openMenu(ev,cid,i,k){
+  ev.stopPropagation();
+  menuCtx={cid,i,k};
+  const m=$('menu');
+  m.innerHTML=[['P','√ Present'],['L','L Late'],['O','O Approved leave'],['X','X Absent'],['','Clear']]
+    .map(([v,t])=>`<div onclick="setStatus('${v}')" class="${v?'s-'+v:''}"><b>${t}</b></div>`).join('');
+  m.style.display='block';
+  const r=m.getBoundingClientRect();
+  m.style.left=Math.max(8,Math.min(ev.clientX,window.innerWidth-r.width-8))+'px';
+  m.style.top=Math.max(8,Math.min(ev.clientY,window.innerHeight-r.height-8))+'px';
+}
+function setStatus(v){
+  const {cid,i,k}=menuCtx;
+  const c=db.courses.find(x=>x.id===cid);if(!c)return;
+  const s=c.students[i];
+  s[k]=v||null;
+  if(k==='in'&&(v==='O'||v==='X')&&!s.out)s.out=v;
+  $('menu').style.display='none';save();renderSheet();
+}
+document.addEventListener('click',()=>$('menu').style.display='none');
+window.addEventListener('scroll',()=>$('menu').style.display='none',{passive:true});
+
+function markAll(k){cur()?.students.forEach(s=>s[k]='P');save();renderSheet()}
+function clearAll(){if(confirm('Clear all attendance marks for the selected session?')){cur()?.students.forEach(s=>{s.in=null;s.out=null});save();renderSheet()}}
+const mark=v=>v?`<span class="s-${v}">${SYM[v]}</span>`:'&nbsp;';
+
+// A late student (L) is counted as Late AND as Present
+function counts(c){
+  const n={P:0,L:0,O:0,X:0};
+  c.students.forEach(s=>{
+    if(s.in){
+      n[s.in]++;
+      if(s.in==='L')n.P++;
+    }
+  });
+  return n;
+}
+const uniq=a=>[...new Set(a.filter(Boolean))];
+
+function emptyHtml(){
+  const ns=(db.roster||[]).length;
+  const hasC=db.courses.length>0;
+  return `<div class="empty">
+    <h2>${hasC?'No students in this major yet':'Nothing here yet 还没有数据'}</h2>
+    <div>${hasC?'Import your students to fill the sheet.':'Your data will appear here after you upload it.'}</div>
+    <ol>
+      <li>Import the <b>students</b> CSV (Setup → Students)</li>
+      <li>Import the <b>courses</b> CSV (Setup → Courses) or tap “New course”</li>
+      <li>Pick a date and start marking attendance</li>
+    </ol>
+    <div><span class="st">${ns} students · ${courseTitles().length} courses · ${db.courses.length} sessions</span></div>
+    <div style="margin-top:14px"><button onclick="openHelp()">${ic('help')}How to upload CSV</button>
+    <button class="gray" onclick="setTab('setup')">${ic('sliders')}Open Setup</button></div>
+  </div>`;
+}
+
+function renderSheet(){
+  const list=sessions();
+  const sh=$('sheet');
+  if(!list.length||!list.some(c=>c.students.length)){
+    sh.className='emp';sh.innerHTML=emptyHtml();fitSheet();return;
+  }
+  sh.className='';
+  // Photo height: 69px up to 13 students; shorter rows so 14-18 students fit on one page
+  const totalStu=list.reduce((m,c)=>Math.max(m,c.students.length),0);
+  const rowsOnPage=Math.min(Math.max(totalStu,1),PER_PAGE);
+  sh.style.setProperty('--ph',(rowsOnPage<=13?69:Math.floor(988/rowsOnPage)-7)+'px');
+  const multi=list.length>1,n=list.length;
+  const all=[],seen={};
+  list.forEach(c=>c.students.forEach(s=>{if(!seen[s.no]){seen[s.no]=1;all.push(s)}}));
+  // Column widths (%). For 2-4 classes the Check In / Check Out columns are narrow
+  // and the passport name column is wide.
+  let cols;
+  if(!multi)cols=[17,9,24,15,17.5,17.5];
+  else{
+    const fixed=n===2?[11,8,22,9]:n===3?[11,7,21,8]:[10,7,19,7];
+    const a=+((100-fixed.reduce((x,y)=>x+y,0))/(2*n)).toFixed(2);
+    cols=[...fixed,...Array(2*n).fill(a)];
+  }
+  const colgroup='<colgroup>'+cols.map(w=>`<col style="width:${w}%">`).join('')+'</colgroup>';
+  const thead=!multi
+    ?`<tr><th>序号</th><th>照片</th><th>护照姓名</th><th>中文名字</th><th>Check In</th><th>Check Out</th></tr>`
+    :`<tr><th rowspan="2">序号</th><th rowspan="2">照片</th><th rowspan="2">护照姓名</th><th rowspan="2">中文名字</th>
+       ${list.map(c=>`<th class="sh" colspan="2"><div class="s1">${esc(cnSubject(c.title))}</div>
+          <div class="s2">${esc(slotTime(c.slot))}</div><div class="s2">${esc(c.teacher)}</div></th>`).join('')}</tr>
+       <tr>${list.map(()=>'<th class="ci">Check In</th><th class="ci">Check Out</th>').join('')}</tr>`;
+  const pages=Math.max(1,Math.ceil(all.length/PER_PAGE));
+  const tcls=(multi?'cmb':'')+(n>=4?' c4':'');
+  let html='';
+  for(let p=0;p<pages;p++){
+    const from=p*PER_PAGE,part=all.slice(from,from+PER_PAGE);
+    html+=`<div class="pg ${multi?'m':''}">`;
+    if(p===0){
+      html+=`<div class="cls">${esc(classLine())}</div><div class="badge">出勤名单 Attendance List</div>`;
+      if(!multi){
+        const c=list[0];
+        html+=`<h2>${esc(c.title)||'Course Title'}</h2>
+        <div class="info">
+          <span>日期：${esc(c.date)} ${esc(c.weekday)}</span><span>${esc(c.week)}</span>
+          <span>时间：${esc(slotShort(c.slot))}</span><span>教师：${esc(c.teacher)}</span>
+        </div>`;
+      }else{
+        const dates=uniq(list.map(c=>c.date)).join(' / ');
+        const days=uniq(list.map(c=>c.weekday)).join(' / ');
+        const weeks=uniq(list.map(c=>c.week)).join(' / ');
+        html+=`<div class="info common"><span>日期：${esc(dates)} ${esc(days)}</span><span>${esc(weeks)}</span></div>`;
+      }
+    }
+    html+=`<table class="${tcls}">${colgroup}${thead}
+      ${part.map(s=>{
+        const photo=photoOf(s);
+        const cells=list.map(c=>{
+          const i=c.students.findIndex(x=>x.no===s.no);
+          if(i<0)return '<td colspan="2">—</td>';
+          const t=c.students[i];
+          return `<td class="att" onclick="openMenu(event,'${c.id}',${i},'in')">${mark(t.in)}</td>
+                  <td class="att" onclick="openMenu(event,'${c.id}',${i},'out')">${mark(t.out)}</td>`;
+        }).join('');
+        return `<tr><td class="id">${esc(s.id)}</td>
+          <td class="pc">${photo?`<img class="ph" src="${photo}">`:'<div class="phbox"></div>'}</td>
+          <td class="nm">${esc(s.name)}</td><td>${esc(s.cn)}</td>${cells}</tr>`;
+      }).join('')}
+    </table>`;
+    if(p===pages-1){
+      if(!multi){
+        const k=counts(list[0]);
+        html+=`<div class="legend"><span>√ Present: ${k.P}</span><span>L Late: ${k.L}</span>
+          <span>O Approved leave: ${k.O}</span><span>X Absent: ${k.X}</span><span>Total: ${list[0].students.length}</span></div>`;
+      }else{
+        html+=`<div class="legend m">`+list.map(c=>{
+          const k=counts(c);
+          return `<div><b>${esc(cnSubject(c.title))} Check In</b><span>√ Present: ${k.P}</span><span>L Late: ${k.L}</span><span>O Approved leave: ${k.O}</span><span>X Absent: ${k.X}</span><span>Total: ${c.students.length}</span></div>`;
+        }).join('')+`</div>`;
+      }
+    }
+    html+=`</div>`;
+  }
+  sh.innerHTML=html;
+  fitSheet();
+}
+
+async function exportPDF(){
+  const list=sessions();
+  if(!list.length||!list.some(c=>c.students.length))return alert('Nothing to export yet. Import your students and courses first.');
+  const wasSetup=document.body.classList.contains('t-setup');
+  const sh=$('sheet');
+  try{
+    document.body.classList.remove('t-setup');document.body.classList.add('t-sheet');
+    sh.style.transform='none';$('sheetBox').style.height='auto';
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF('p','mm','a4');
+    const pw=210,ph=297,m=8;
+    const maxW=pw-m*2,maxH=ph-m*2;
+    const pages=document.querySelectorAll('#sheet .pg');
+    for(let i=0;i<pages.length;i++){
+      const canvas=await html2canvas(pages[i],{scale:2,backgroundColor:'#fff',useCORS:true});
+      let w=maxW,h=w*canvas.height/canvas.width;
+      if(h>maxH){h=maxH;w=h*canvas.width/canvas.height}
+      if(i>0)pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/jpeg',.95),'JPEG',(pw-w)/2,m,w,h);
+    }
+    const c=list[0];
+    const wk=fileSafe(c.week||'');
+    const fname=list.length>1
+      ? `${fileSafe(curMajor().cn)}-${wk}_${c.date||'date'}-出勤名单`
+      : `${fileSafe(cnSubject(c.title))}-${wk}-${c.date||'date'}-出勤名单`;
+    pdf.save(fname+'.pdf');
+  }catch(e){
+    alert('PDF export failed: '+e.message);
+  }finally{
+    if(wasSetup){document.body.classList.remove('t-sheet');document.body.classList.add('t-setup')}
+    fitSheet();
+  }
+}
+
+// one-line summary shown on each card header
+function renderSum(){
+  const d=$('ttDate').value;
+  const n=d?dayList(d).length:0;
+  $('sumDay').textContent=d?`${d.slice(5)} · ${n} class${n===1?'':'es'}`:'';
+  $('sumCourse').textContent=`${courseTitles().length} courses · ${db.courses.length} sessions`;
+  const np=db.roster.filter(r=>db.photos[r.no]).length;
+  $('sumStu').textContent=`${db.roster.length} students · ${np} photos`;
+}
+
+function renderAll(){renderMajor();renderSel();renderFields();renderTT();renderCombo();renderStu();renderSheet();renderBackup();renderSum()}
+sortCourses();
+if(!cur())db.cur=db.courses[0]?.id||null;
+saveMajors();save();renderAll();
+if(!curMajor().cn)openMajor('first');
+</script>
+</body>
+</html>

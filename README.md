@@ -21,7 +21,7 @@ Offline-first attendance sheet maker. Import students and courses from CSV/Excel
 <br>
 
 <!-- Replace with your own screenshot. Use fake names only. -->
-<img src="docs/screenshot.png" alt="Attendance Sheet Maker screenshot" width="780">
+<img src="https://github.com/csebadhon/attendance-sheet-maker/blob/main/screenshot.png" alt="Attendance Sheet Maker screenshot" width="780">
 
 </div>
 

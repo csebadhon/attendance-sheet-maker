@@ -16,7 +16,7 @@ Offline-first attendance sheet maker. Import students and courses from CSV/Excel
 ![No server](https://img.shields.io/badge/no%20server-100%25%20local-3b8050?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-2e8b48?style=for-the-badge)
 
-[🚀 **Open the app**](https://YOUR-USERNAME.github.io/attendance-sheet-maker/) · [📖 **How to use**](#-how-to-use) · [📄 **CSV formats**](#-csv-formats) · [❓ **FAQ**](#-faq)
+[🚀 **Open the app**]([https://csebadhon.github.io/attendance-sheet-maker/](https://github.com/csebadhon/attendance-sheet-maker)) · [📖 **How to use**](#-how-to-use) · [📄 **CSV formats**](#-csv-formats) · [❓ **FAQ**](#-faq)
 
 <br>
 
